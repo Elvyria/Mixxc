@@ -53,9 +53,9 @@ GSK_RENDERER=cairo GTK_USE_PORTAL=0 mixxc
 ```
 
 ## Dependencies
-* gtk4
-* gtk4-layer-shell (Wayland)
-* libpulseaudio (PulseAudio)
+* [GTK4](https://www.gtk.org/)
+* [gtk4-layer-shell](https://github.com/wmww/gtk4-layer-shell) (Feature: Wayland)
+* [libpulseaudio](https://www.freedesktop.org/wiki/Software/PulseAudio) (Feature: PulseAudio)
 
 ## Installation
 
