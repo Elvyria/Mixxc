@@ -1,0 +1,24 @@
+[package]
+name = "mixxc"
+version = "0.1.0"
+authors = ["Elvyria <elvyria@tutanota.com>"]
+description = "Minimalistic volume mixer."
+repository = "https://github.com/Elvyria/mixxc"
+license = "MIT"
+edition = "2021"
+
+[dependencies]
+anyhow = "1.0"
+argh = "0.1"
+bitflags = "2.4"
+libpulse-binding = "2.0"
+relm4 = "0.7.0-alpha.1"
+gtk4-layer-shell = "0.2"
+tracker = "0.1"
+enum_dispatch = "0.3"
+flume = "0.11"
+itertools = "0.11"
+grass = { version = "0.13", optional = true }
+
+[features]
+sass = ["dep:grass"]

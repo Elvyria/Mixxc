@@ -1,0 +1,72 @@
+/* Please refer to GTK4 CSS specification */
+
+/* https://docs.gtk.org/gtk4/css-properties.html */
+@define-color bg     #161616;
+@define-color fg     #B9B9B9;
+@define-color accent #684EFF;
+
+window {
+	border: 1px @accent solid;
+	border-radius: 10px;
+
+	background-color: @bg;
+}
+
+.main {
+	margin: 20px;
+}
+
+.client {
+	color: white;
+	font-family: 'Noto Sans';
+	font-size: 1.1em;
+}
+
+.client > .name {
+	/* Hide Application Name */
+	/* font-size: 0; */
+}
+
+.client > .description {
+	/* Hide Application Description */
+	/* font-size: 0; */
+}
+
+/* Slider Knob */
+scale > trough > slider {
+	margin-left: 0;
+	margin-right: 0;
+
+	margin-top: -7px;
+	margin-bottom: -7px;
+
+	padding: 0 0;
+
+	border: none;
+	border-radius: 2px;
+
+	min-width: 6px;
+
+	background-color: @accent;
+}
+
+/* Slider Bar */
+scale > trough {
+	min-height: 4px;
+	/* min-width: 8px; */
+
+	background-color: lighter(@bg);
+	border-radius: 10px;
+}
+
+/* Slider Bar Filled */
+scale > trough > highlight {
+	background-color: @accent;
+	border-radius: 10px;
+}
+
+/* Volume */
+scale > value {
+	color: @fg;
+	padding-left: 15px;
+}
