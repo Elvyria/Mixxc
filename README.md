@@ -58,7 +58,6 @@ GSK_RENDERER=cairo GTK_USE_PORTAL=0 mixxc
 * [libpulseaudio](https://www.freedesktop.org/wiki/Software/PulseAudio) (Feature: PulseAudio)
 
 ## Installation
-
 Can be installed from [crates.io](https://crates.io/) with `cargo`:
 
 ```sh
@@ -66,11 +65,14 @@ cargo install mixxc
 ```
 
 ## Building
-
 To build this little thing, you'll need some [Rust](https://www.rust-lang.org/).
 
 ```sh
 git clone --depth 1 https://github.com/Elvyria/mixxc
 cd mixxc
-cargo build --release
+cargo build --release --features ...
 ```
+
+## Features
+Some features can be enabled at compile time.
+* [Sass](https://sass-lang.com/) - Allows you to use SCSS instead of CSS.

@@ -7,6 +7,9 @@ repository = "https://github.com/Elvyria/mixxc"
 license = "MIT"
 edition = "2021"
 
+[features]
+Sass = ["dep:grass", "dep:filetime"]
+
 [dependencies]
 anyhow = "1.0"
 argh = "0.1"
@@ -16,6 +19,7 @@ tracker = "0.1"
 enum_dispatch = "0.3"
 itertools = "0.11"
 grass = { version = "0.13", optional = true }
+filetime = { version = "0.2", optional = true }
 
 [dependencies.flume]
 version = "0.11"
@@ -30,6 +34,3 @@ features = ["macros"]
 version = "2.0"
 default_features = false
 features = ["pa_v8"]
-
-[features]
-sass = ["dep:grass"]
