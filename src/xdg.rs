@@ -11,6 +11,7 @@ pub fn config_dir() -> PathBuf {
     .expect("couldn't find config directory")
 }
 
+#[cfg(feature = "Sass")]
 pub fn cache_dir() -> PathBuf {
     env::var_os("XDG_CACHE_HOME")
         .map(PathBuf::from)
