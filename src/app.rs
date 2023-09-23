@@ -1,11 +1,13 @@
 use std::sync::Arc;
 
 use gtk::prelude::{BoxExt, GtkWindowExt, OrientableExt, ScaleExt, RangeExt, WidgetExt};
-use gtk4_layer_shell::{Edge, Layer, LayerShell};
 use relm4::factory::FactoryVecDeque;
 use relm4::gtk::{Orientation, PositionType};
 use relm4::prelude::FactoryComponent;
 use relm4::{gtk, ComponentParts, ComponentSender, Component, FactorySender};
+
+#[cfg(feature = "Wayland")]
+use gtk4_layer_shell::{Edge, Layer, LayerShell};
 
 use crate::anchor::Anchor;
 use crate::server::{AudioServerEnum, AudioServer, self, Volume};
@@ -120,10 +122,6 @@ impl Component for App {
 
     view! {
         gtk::Window {
-            init_layer_shell: (),
-            set_layer: Layer::Top,
-            set_title: Some(crate::APP_NAME),
-            set_namespace: "volume-mixer",
             add_controller = gtk::EventControllerMotion {
                 connect_leave[sender] => move |motion| {
                     if motion.is_pointer() {
@@ -161,10 +159,19 @@ impl Component for App {
 
         let widgets = view_output!();
 
-        for (i, anchor) in config.anchors.iter().enumerate() {
-            let edge = anchor.try_into().unwrap();
-            window.set_anchor(edge, true);
-            window.set_margin(edge, *config.margins.get(i).unwrap_or(&0))
+        #[cfg(feature = "Wayland")]
+        {
+            window.init_layer_shell();
+            window.set_layer(Layer::Top);
+            window.set_title(Some(crate::APP_NAME));
+            window.set_namespace("volume-mixer");
+
+            for (i, anchor) in config.anchors.iter().enumerate() {
+                let edge = anchor.try_into().unwrap();
+
+                window.set_anchor(edge, true);
+                window.set_margin(edge, *config.margins.get(i).unwrap_or(&0));
+            }
         }
 
         ComponentParts { model, widgets }
@@ -226,6 +233,7 @@ impl Component for App {
     }
 }
 
+#[cfg(feature = "Wayland")]
 impl TryFrom<Anchor> for Edge {
     type Error = ();
 

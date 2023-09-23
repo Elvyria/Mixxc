@@ -76,3 +76,4 @@ cargo build --release --features ...
 ## Features
 Some features can be enabled at compile time.
 * [Sass](https://sass-lang.com/) - Allows you to use SCSS instead of CSS.
+* [Wayland](https://wayland.freedesktop.org/) - Uses wlr-layer-shell to imitate window positioning.

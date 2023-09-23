@@ -8,13 +8,14 @@ license = "MIT"
 edition = "2021"
 
 [features]
+Wayland = ["dep:gtk4-layer-shell"]
 Sass = ["dep:grass", "dep:filetime"]
 
 [dependencies]
 anyhow = "1.0"
 argh = "0.1"
 bitflags = "2.4"
-gtk4-layer-shell = "0.2"
+gtk4-layer-shell = { version = "0.2", optional = true }
 tracker = "0.1"
 enum_dispatch = "0.3"
 itertools = "0.11"
