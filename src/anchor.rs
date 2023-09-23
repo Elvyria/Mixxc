@@ -3,7 +3,7 @@ use std::str::FromStr;
 use bitflags::bitflags;
 
 bitflags! {
-    #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+    #[derive(Clone, Copy, PartialEq, Eq)]
     pub struct Anchor: u8 {
         const None    = 0b0000;
         const Top     = 0b0001;
@@ -13,7 +13,7 @@ bitflags! {
     }
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug)]
 pub struct ParseAnchorError(pub String);
 
 impl FromStr for Anchor {

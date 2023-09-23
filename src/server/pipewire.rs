@@ -3,7 +3,7 @@ use relm4::Sender;
 
 use super::{AudioServer, Message, Volume};
 
-#[derive(Copy, Clone)]
+#[derive(Clone, Copy)]
 pub struct Pipewire;
 
 impl AudioServer for Pipewire {

@@ -16,7 +16,7 @@ use libpulse_binding::volume::ChannelVolumes;
 
 use super::{Message, Volume, AudioServer, Client};
 
-#[derive(Copy, Clone)]
+#[derive(Clone, Copy)]
 enum Command {
     SetVolume(u32, ChannelVolumes),
 }
