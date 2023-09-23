@@ -47,7 +47,7 @@ scale > trough > slider {
 
 	min-width: 6px;
 
-	background-color: @accent;
+	background: @accent;
 }
 
 /* Slider Bar */
@@ -56,12 +56,16 @@ scale > trough {
 	/* min-width: 8px; */
 
 	background-color: lighter(@bg);
+
+	border: none;
 	border-radius: 10px;
 }
 
 /* Slider Bar Filled */
 scale > trough > highlight {
 	background-color: @accent;
+
+	border: none;
 	border-radius: 10px;
 }
 
