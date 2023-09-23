@@ -11,14 +11,25 @@ edition = "2021"
 anyhow = "1.0"
 argh = "0.1"
 bitflags = "2.4"
-libpulse-binding = "2.0"
-relm4 = "0.7.0-alpha.1"
 gtk4-layer-shell = "0.2"
 tracker = "0.1"
 enum_dispatch = "0.3"
-flume = "0.11"
 itertools = "0.11"
 grass = { version = "0.13", optional = true }
+
+[dependencies.flume]
+version = "0.11"
+default_features = false
+
+[dependencies.relm4]
+version = "0.7.0-alpha.1"
+default_features = false
+features = ["macros"]
+
+[dependencies.libpulse-binding]
+version = "2.0"
+default_features = false
+features = ["pa_v8"]
 
 [features]
 sass = ["dep:grass"]
