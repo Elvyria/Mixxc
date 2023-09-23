@@ -8,7 +8,7 @@ Currently, it supports only `pulseaudio` and `pipewire` (through the pulseaudio 
 ![Preview](https://user-images.githubusercontent.com/2061234/270078395-6454be21-aa09-4da2-8a07-3a3c9b41138f.png)
 
 ## Usage
-```
+```sh
 Usage: mixxc [-w <width>] [-h <height>] [-s <spacing>] [-a <anchor...>] [-m <margin...>] [-v]
 
 Minimalistic volume mixer.
@@ -23,10 +23,18 @@ Options:
   --help            display usage information
 ```
 
+### Anchoring
+It is often desirable to be able to position widgets relatively to a screen side.  
+Two flags will help with this: `-a --anchor` and `-m --margin`.  
+Each margin value provided will match every anchor point respectively.  
+```sh
+mixxc --anchor left --anchor bottom --margin 20 --margin 30
+```
+
 ## Customization
 Mixxc is built with GTK4 and uses CSS to define its appearance.  
 You will find the style sheet in your config directory after the first launch.
-```
+```sh
 ${XDG_CONFIG_HOME:-$HOME/.config}/mixxc/mixxc.css
 ```
 
@@ -40,7 +48,7 @@ If your setup is different and you experience issues, feel free to file a bug re
 
 ## Startup Time
 If startup seems a bit slow, try this:
-```
+```sh
 GSK_RENDERER=cairo GTK_USE_PORTAL=0 mixxc
 ```
 
