@@ -1,24 +1,23 @@
 use std::{env, path::PathBuf};
 
+macro_rules! xdg {
+    ($env:expr, $dir:expr) => {
+        env::var_os($env)
+            .map(PathBuf::from)
+            .or_else(|| {
+                env::var_os("HOME")
+                    .map(PathBuf::from)
+                    .map(|mut p| { p.push($dir); p })
+            })
+        .expect(concat!("couldn't find ", $env, " directory"))
+    };
+}
+
 pub fn config_dir() -> PathBuf {
-    env::var_os("XDG_CONFIG_HOME")
-        .map(PathBuf::from)
-        .or_else(|| {
-            env::var_os("HOME")
-                .map(PathBuf::from)
-                .map(|mut p| { p.push(".config"); p })
-        })
-    .expect("couldn't find config directory")
+    xdg!("XDG_CONFIG_HOME", ".config")
 }
 
 #[cfg(feature = "Sass")]
 pub fn cache_dir() -> PathBuf {
-    env::var_os("XDG_CACHE_HOME")
-        .map(PathBuf::from)
-        .or_else(|| {
-            env::var_os("HOME")
-                .map(PathBuf::from)
-                .map(|mut p| { p.push(".cache"); p })
-        })
-    .expect("couldn't find cache directory")
+    xdg!("XDG_CACHE_HOME", ".cache")
 }
