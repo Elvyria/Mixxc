@@ -1,0 +1,62 @@
+/* Please refer to GTK4 CSS specification */
+
+$bg:     #161616
+$fg:     #B9B9B9
+$accent: #684EFF
+
+window
+	border: 1px $accent solid
+	border-radius: 10px
+
+	background-color: $bg
+
+.main
+	margin: 20px
+
+.client
+	color: white
+	font-family: 'Noto Sans'
+	font-size: 1.1em
+
+	.name
+		/* Hide Application Name */
+		// font-size: 0
+
+	.description
+		/* Hide Application Description */
+		/* font-size: 0 */
+
+scale
+	/* Slider Bar */
+	trough
+		min-height: 4px
+
+		background-color: lighter($bg)
+		border-radius: 10px
+
+		/* Slider Knob */
+		slider
+			margin-left: 0
+			margin-right: 0
+
+			margin-top: -7px
+			margin-bottom: -7px
+
+			padding: 0 0
+
+			border: none
+			border-radius: 2px
+
+			min-width: 6px
+
+			background-color: $accent
+
+		/* Slider Bar Filled */
+		highlight
+			background-color: $accent
+			border-radius: 10px
+
+	/* Volume */
+	value
+		color: $fg
+		padding-left: 15px
