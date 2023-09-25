@@ -13,6 +13,7 @@ Sass = ["dep:grass", "dep:filetime"]
 
 [dependencies]
 anyhow = "1.0"
+thiserror = "1.0"
 argh = "0.1"
 bitflags = "2.4"
 gtk4-layer-shell = { version = "0.2", optional = true }

@@ -2,19 +2,23 @@ mod xdg;
 mod server;
 mod app;
 mod anchor;
+mod error;
 
 use std::borrow::Cow;
+use std::ffi::OsStr;
+use std::path::{PathBuf, Path};
 use std::{env, fs};
 use std::str::FromStr;
 use std::ops::BitOr;
 use std::fs::File;
+
 use std::io::Write;
 
-use anyhow::{Context, Error, anyhow};
 use itertools::Itertools;
 use relm4::RelmApp;
 use argh::FromArgs;
 
+use error::{Error, ConfigError, StyleError};
 use anchor::Anchor;
 use server::pulse::Pulse;
 use app::Config;
@@ -48,6 +52,10 @@ struct Args {
     #[argh(option, short = 'm', long = "margin")]
     margins: Vec<i32>,
 
+    /// path to the userstyle
+    #[argh(option, short = 'u')]
+    userstyle: Option<PathBuf>,
+
     /// print version
     #[argh(switch, short = 'v')]
     version: bool,
@@ -71,9 +79,46 @@ fn main() {
         Err(e) => panic!("'{}' is not a valid anchor point", e.0),
     };
 
+    let style = match args.userstyle {
+        Some(p) if !p.exists() => {
+            eprintln!("{p:?}: no such file");
+            return;
+        }
+        Some(p) => userstyle(p),
+        None => {
+            config_dir()
+            .map_err(Into::into)
+            .and_then(|mut style_path| {
+                style_path.push("style");
+
+                #[cfg(feature = "Sass")]
+                for ext in ["scss", "sass"] {
+                    style_path.set_extension(ext);
+
+                    match userstyle(&style_path) {
+                        Ok(style) => return Ok(style),
+                        Err(Error::Style(StyleError::NotFound { e: _ })) => continue,
+                        Err(e) => eprintln!("{}", e)
+                    }
+                }
+                
+                style_path.set_extension("css");
+
+                userstyle(style_path)
+            })
+        },
+    };
+
+    let style = match style {
+        Ok(s) => s,
+        Err(e) => {
+            eprintln!("{}\nFalling back to default style.", e);
+            Cow::Borrowed(DEFAULT_STYLE)
+        }
+    };
+
     let app = RelmApp::new(crate::APP_ID).with_args(vec![]);
 
-    let style = userstyle().map_err(|e| eprintln!("{}", e)).unwrap_or(Cow::Borrowed(DEFAULT_STYLE));
     relm4::set_global_css(&style);
 
     app.run::<app::App>(Config {
@@ -87,77 +132,87 @@ fn main() {
     });
 }
 
-fn userstyle() -> Result<Cow<'static, str>, Error> {
-    let mut style_path = xdg::config_dir();
-    style_path.push(crate::APP_BINARY);
+fn config_dir() -> Result<PathBuf, ConfigError> {
+    let mut dir = xdg::config_dir();
+    dir.push(crate::APP_BINARY);
 
-    if !style_path.exists() {
-        fs::create_dir(&style_path)
-            .with_context(|| format!("Unable to create a config directory {:?}", style_path))?;
+    if !dir.exists() {
+        fs::create_dir(&dir).map_err(|e| ConfigError::Create { e, path: dir.clone() })?;
     }
 
-    if !style_path.is_dir() {
-        return Err(anyhow!("Unable to access a config directory.\n{:?} is not a directory", style_path))
+    if !dir.is_dir() {
+        return Err(ConfigError::NotDirectory(dir))
     }
 
-    style_path.push(crate::APP_BINARY);
+    Ok(dir)
+}
 
-    #[cfg(feature = "Sass")]
-    match sass(&mut style_path) {
-        Ok(style) if !style.is_empty() => return Ok(Cow::Owned(style)),
-        Err(e) => eprintln!("{}", e),
-        Ok(_) => {},
+fn userstyle(path: impl AsRef<Path>) -> Result<Cow<'static, str>, Error> {
+    let path = path.as_ref();
+
+    match path.extension().and_then(OsStr::to_str)
+    {
+        #[cfg(feature = "Sass")]
+        Some("sass" | "scss") => sass(path).map(Cow::Owned),
+        Some("css") if !path.exists() => {
+            let mut fd = File::create(path).map_err(|e| StyleError::Create { e, path: path.to_owned() })?;
+            fd.write_all(DEFAULT_STYLE.as_bytes()).map_err(|e| StyleError::Write { e, path: path.to_owned() })?;
+
+            Ok(Cow::Borrowed(DEFAULT_STYLE))
+        },
+        Some("css") => {
+            fs::read_to_string(path)
+                .map(Cow::Owned)
+                .map_err(|e| StyleError::Read { e, path: path.to_owned() })
+                .map_err(Into::into)
+        },
+        None | Some(_) => {
+            #[allow(unused_variables)]
+            let expected = "css";
+
+            #[cfg(feature = "Sass")]
+            let expected = "css, sass, scss";
+
+            Err(StyleError::Extension { expected }.into())
+        },
     }
-
-    style_path.set_extension("css");
-
-    if !style_path.exists() {
-        let mut fd = File::create(&style_path)
-            .with_context(|| format!("Unable to create a style file {:?}", style_path))?;
-
-        fd.write_all(DEFAULT_STYLE.as_bytes())
-            .with_context(|| format!("Unable to write a style to a file {:?}", style_path))?;
-
-        return Ok(Cow::Borrowed(DEFAULT_STYLE));
-    }
-
-    fs::read_to_string(&style_path)
-        .map(Cow::Owned)
-        .with_context(|| format!("Unable to read a style file {:?}", style_path))
 }
 
 #[cfg(feature = "Sass")]
-fn sass(style: &mut std::path::PathBuf) -> Result<String, Error> {
-    style.set_extension("scss");
+fn sass(style_path: impl AsRef<std::path::Path>) -> Result<String, Error> {
+    let style_path = style_path.as_ref();
 
-    let style_meta = match fs::metadata(&style) {
+    let style_meta = match fs::metadata(style_path) {
         Ok(m) => m,
-        Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(String::new()),
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Err(StyleError::NotFound{e}.into()),
         Err(e) => {
-            return Err(anyhow!("Error while trying to get metadata of {:?}: {}", style, e))
+            return Err(StyleError::Meta { e, path: style_path.to_owned() }.into())
         }
     };
 
-    let style_mtime = style_meta.modified()
-        .with_context(|| format!("Unable to read mtime of a style {:?}", style))?;
+    let style_mtime = style_meta.modified().map_err(|e| StyleError::MTime { e, path: style_path.to_owned() })?;
 
     let mut cache = xdg::cache_dir();
     cache.push(crate::APP_BINARY);
     cache.set_extension("css");
 
+    use error::CacheError;
+
     if let Ok(cache_meta) = fs::metadata(&cache) {
         if Some(style_mtime) == cache_meta.modified().ok() {
-            return fs::read_to_string(cache).map_err(Into::into);
+            return fs::read_to_string(&cache)
+                .map_err(|e| CacheError::Read { e, path: cache })
+                .map_err(Into::into);
         }
     }
 
-    let compiled = grass::from_path(&style, &grass::Options::default())?;
+    let compiled = grass::from_path(style_path, &grass::Options::default())?;
     if let Err(e) = fs::write(&cache, &compiled) {
-        eprintln!("Unable to cache sass: {}", e);
+        eprintln!("{}", CacheError::Write { e, path: cache.clone() });
     }
 
     if let Err(e) = filetime::set_file_mtime(&cache, filetime::FileTime::from_system_time(style_mtime)) {
-        eprintln!("Unable to update mtime for cache: {}", e);
+        eprintln!("{}", CacheError::MTime { e, path: cache });
     }
 
     Ok(compiled)

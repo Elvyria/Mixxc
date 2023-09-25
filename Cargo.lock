@@ -927,6 +927,7 @@ dependencies = [
  "itertools",
  "libpulse-binding",
  "relm4",
+ "thiserror",
  "tracker",
 ]
 
