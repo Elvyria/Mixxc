@@ -36,7 +36,12 @@ mixxc --anchor left --anchor bottom --margin 20 --margin 30
 Mixxc is built with GTK4 and uses CSS to define its appearance.  
 You will find the style sheet in your config directory after the first launch.
 ```sh
-${XDG_CONFIG_HOME:-$HOME/.config}/mixxc/mixxc.css
+${XDG_CONFIG_HOME:-$HOME/.config}/mixxc/style.css
+```
+If you have enabled the Sass feature, it will also look for *.scss and *.sass files.
+```sh
+${XDG_CONFIG_HOME:-$HOME/.config}/mixxc/style.sass
+${XDG_CONFIG_HOME:-$HOME/.config}/mixxc/style.scss
 ```
 
 ## Environment
