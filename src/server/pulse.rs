@@ -21,7 +21,6 @@ enum Command {
     SetVolume(u32, ChannelVolumes),
 }
 
-// use super::AudioServer;
 #[derive(Clone)]
 pub struct Pulse {
     tx: flume::Sender<Command>,
