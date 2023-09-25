@@ -29,7 +29,7 @@ version = "0.11"
 default_features = false
 
 [dependencies.relm4]
-version = "=0.7.0-alpha.1"
+version = "=0.7.0-beta.1"
 default_features = false
 features = ["macros"]
 

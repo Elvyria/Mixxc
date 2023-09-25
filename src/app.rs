@@ -50,7 +50,7 @@ impl FactoryComponent for Slider {
     type Init = server::Client;
     type Input = f64;
     type Output = Message;
-    type ParentInput = Message;
+    // type ParentInput = Message;
     type ParentWidget = gtk::Box;
     type CommandOutput = ();
 
@@ -90,10 +90,6 @@ impl FactoryComponent for Slider {
                 },
             }
         }
-    }
-
-    fn forward_to_parent(output: Self::Output) -> Option<Self::ParentInput> {
-        Some(output)
     }
 
     fn init_model(init: Self::Init, _: &Self::Index, _: FactorySender<Self>) -> Self {
@@ -150,7 +146,9 @@ impl Component for App {
         window.set_default_height(config.height as i32);
         window.set_default_width(config.width as i32);
 
-        let sliders: FactoryVecDeque<Slider> = FactoryVecDeque::new(gtk::Box::default(), sender.input_sender());
+        let sliders = FactoryVecDeque::builder(gtk::Box::default())
+            .launch()
+            .forward(sender.input_sender(), |output| output);
 
         let model = App { server, sliders };
 
