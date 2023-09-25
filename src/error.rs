@@ -53,7 +53,7 @@ pub enum StyleError {
     Write { e: io::Error, path: PathBuf },
 
     #[cfg(feature = "Sass")]
-    #[error("{}: {e}")]
+    #[error("{}: {e}", colors::ERROR)]
     NotFound { e: io::Error },
 }
 
