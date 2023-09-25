@@ -7,11 +7,9 @@ mod error;
 use std::borrow::Cow;
 use std::ffi::OsStr;
 use std::path::{PathBuf, Path};
-use std::{env, fs};
 use std::str::FromStr;
 use std::ops::BitOr;
-use std::fs::File;
-
+use std::fs::{self, File};
 use std::io::Write;
 
 use itertools::Itertools;
@@ -79,6 +77,8 @@ fn main() {
         Err(e) => panic!("'{}' is not a valid anchor point", e.0),
     };
 
+    warning(&args);
+
     let style = match args.userstyle {
         Some(p) if !p.exists() => {
             eprintln!("{p:?}: no such file");
@@ -130,6 +130,22 @@ fn main() {
 
         server: Pulse::new().into(),
     });
+}
+
+#[allow(unused_variables)]
+fn warning(args: &Args) {
+    #[cfg(not(feature = "Wayland"))]
+    if std::env::var("WAYLAND_DISPLAY").is_ok() {
+        println!("{}: You are trying to use Mixxc on Wayland, but '{}' feature wasn't included at compile time!", "Warning", "Wayland")
+    }
+
+    #[cfg(not(feature = "Sass"))]
+    if let Some(p) = &args.userstyle {
+        let extension = p.extension().and_then(OsStr::to_str);
+        if let Some("sass"|"scss") = extension {
+            println!("{}: You have specified *.{} file as userstyle, but '{}' feature wasn't included at compile time!", "Warning", extension.unwrap(), "Sass")
+        }
+    }
 }
 
 fn config_dir() -> Result<PathBuf, ConfigError> {
