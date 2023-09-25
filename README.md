@@ -9,7 +9,7 @@ Currently, it supports only `pulseaudio` and `pipewire` (through the pulseaudio 
 
 ## Usage
 ```sh
-Usage: mixxc [-w <width>] [-h <height>] [-s <spacing>] [-a <anchor...>] [-m <margin...>] [-v]
+Usage: mixxc [-w <width>] [-h <height>] [-s <spacing>] [-a <anchor...>] [-m <margin...>] [-u <userstyle>] [-v]
 
 Minimalistic volume mixer.
 
@@ -19,6 +19,7 @@ Options:
   -s, --spacing     spacing between clients
   -a, --anchor      screen anchor point: (t)op, (b)ottom, (l)eft, (r)ight
   -m, --margin      margin distance for each anchor point
+  -u, --userstyle   path to the userstyle
   -v, --version     print version
   --help            display usage information
 ```
