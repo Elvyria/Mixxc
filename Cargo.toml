@@ -22,6 +22,7 @@ enum_dispatch = "0.3"
 itertools = "0.11"
 grass = { version = "0.13", optional = true }
 filetime = { version = "0.2", optional = true }
+color-print = "0.3.5"
 
 [dependencies.flume]
 version = "0.11"

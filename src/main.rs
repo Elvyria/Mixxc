@@ -2,6 +2,7 @@ mod xdg;
 mod server;
 mod app;
 mod anchor;
+mod colors;
 mod error;
 
 use std::borrow::Cow;
@@ -74,15 +75,18 @@ fn main() {
 
     let anchors = match anchors {
         Ok(anchors) => anchors,
-        Err(e) => panic!("'{}' is not a valid anchor point", e.0),
+        Err(e) => {
+            eprintln!("{}:'{}' is not a valid anchor point", colors::ERROR, e.0);
+            return
+        },
     };
 
     warning(&args);
 
     let style = match args.userstyle {
         Some(p) if !p.exists() => {
-            eprintln!("{p:?}: no such file");
-            return;
+            eprintln!("{}: {p:?}: no such file", colors::ERROR);
+            return
         }
         Some(p) => userstyle(p),
         None => {
@@ -112,7 +116,7 @@ fn main() {
     let style = match style {
         Ok(s) => s,
         Err(e) => {
-            eprintln!("{}\nFalling back to default style.", e);
+            eprintln!("{}\nFalling back to default style...", e);
             Cow::Borrowed(DEFAULT_STYLE)
         }
     };
@@ -136,14 +140,14 @@ fn main() {
 fn warning(args: &Args) {
     #[cfg(not(feature = "Wayland"))]
     if std::env::var("WAYLAND_DISPLAY").is_ok() {
-        println!("{}: You are trying to use Mixxc on Wayland, but '{}' feature wasn't included at compile time!", "Warning", "Wayland")
+        println!("{}: You are trying to use Mixxc on Wayland, but '{}' feature wasn't included at compile time!", colors::WARNING, colors::WAYLAND)
     }
 
     #[cfg(not(feature = "Sass"))]
     if let Some(p) = &args.userstyle {
         let extension = p.extension().and_then(OsStr::to_str);
         if let Some("sass"|"scss") = extension {
-            println!("{}: You have specified *.{} file as userstyle, but '{}' feature wasn't included at compile time!", "Warning", extension.unwrap(), "Sass")
+            println!("{}: You have specified *.{} file as userstyle, but '{}' feature wasn't included at compile time!", colors::WARNING, extension.unwrap(), colors::SASS)
         }
     }
 }
