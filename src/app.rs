@@ -2,8 +2,9 @@ use std::sync::Arc;
 
 use gtk::prelude::{BoxExt, GtkWindowExt, OrientableExt, ScaleExt, RangeExt, WidgetExt};
 use relm4::factory::FactoryVecDeque;
+use relm4::gtk::pango::EllipsizeMode;
 use relm4::gtk::prelude::ApplicationExt;
-use relm4::gtk::{Orientation, PositionType};
+use relm4::gtk::{Orientation, PositionType, Overflow, Align, pango};
 use relm4::prelude::FactoryComponent;
 use relm4::{gtk, ComponentParts, ComponentSender, Component, FactorySender};
 
@@ -64,14 +65,16 @@ impl FactoryComponent for Slider {
                 #[track = "self.changed(Slider::name())"]
                 add_css_class: "name",
                 set_label: &self.name,
-                set_xalign: 0.0,
+                set_halign: Align::Start,
+                set_ellipsize: EllipsizeMode::End,
             },
 
             gtk::Label {
                 #[track = "self.changed(Slider::description())"]
                 add_css_class: "description",
                 set_label: &self.description,
-                set_xalign: 0.0,
+                set_halign: Align::Start,
+                set_ellipsize: EllipsizeMode::End,
             },
 
             gtk::Box {
@@ -119,6 +122,8 @@ impl Component for App {
 
     view! {
         gtk::Window {
+            set_resizable: false,
+
             add_controller = gtk::EventControllerMotion {
                 connect_leave[sender] => move |motion| {
                     if motion.is_pointer() {
@@ -143,9 +148,6 @@ impl Component for App {
 
             move |sender| server.connect(sender) 
         });
-
-        window.set_default_height(config.height as i32);
-        window.set_default_width(config.width as i32);
 
         let sliders = FactoryVecDeque::builder(gtk::Box::default())
             .launch()
@@ -172,6 +174,9 @@ impl Component for App {
                 window.set_margin(edge, *config.margins.get(i).unwrap_or(&0));
             }
         }
+
+        window.set_default_height(config.height as i32);
+        window.set_default_width(config.width as i32);
 
         ComponentParts { model, widgets }
     }
