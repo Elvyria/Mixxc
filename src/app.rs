@@ -2,6 +2,7 @@ use std::sync::Arc;
 
 use gtk::prelude::{BoxExt, GtkWindowExt, OrientableExt, ScaleExt, RangeExt, WidgetExt};
 use relm4::factory::FactoryVecDeque;
+use relm4::gtk::prelude::ApplicationExt;
 use relm4::gtk::{Orientation, PositionType};
 use relm4::prelude::FactoryComponent;
 use relm4::{gtk, ComponentParts, ComponentSender, Component, FactorySender};
@@ -10,6 +11,7 @@ use relm4::{gtk, ComponentParts, ComponentSender, Component, FactorySender};
 use gtk4_layer_shell::{Edge, Layer, LayerShell};
 
 use crate::anchor::Anchor;
+use crate::colors;
 use crate::server::{AudioServerEnum, AudioServer, self, Volume};
 
 pub struct App {
@@ -50,7 +52,6 @@ impl FactoryComponent for Slider {
     type Init = server::Client;
     type Input = f64;
     type Output = Message;
-    // type ParentInput = Message;
     type ParentWidget = gtk::Box;
     type CommandOutput = ();
 
@@ -148,7 +149,7 @@ impl Component for App {
 
         let sliders = FactoryVecDeque::builder(gtk::Box::default())
             .launch()
-            .forward(sender.input_sender(), |output| output);
+            .forward(sender.input_sender(), std::convert::identity);
 
         let model = App { server, sliders };
 
@@ -202,11 +203,9 @@ impl Component for App {
                     sliders.remove(pos);
                 }
             }
-            Error(e) => eprintln!("Audio Server Error: {e}"),
-            Disconnected(e) => {
-                if let Some(e) = e {
-                    eprintln!("Audio Server Error: {e}");
-                }
+            Error(e) => eprintln!("{}: Audio Server :{e}", colors::ERROR),
+            Disconnected(Some(e)) => {
+                eprintln!("{}: Audio Server :{e}", colors::ERROR);
 
                 sender.spawn_command({
                     let server = self.server.clone();
@@ -214,19 +213,18 @@ impl Component for App {
                     move |sender| server.connect(sender) 
                 });
             }
+            Disconnected(None) => relm4::main_application().quit(),
         }
     }
 
-    fn update(&mut self, message: Self::Input, _sender: ComponentSender<Self>, root: &Self::Root) {
+    fn update(&mut self, message: Self::Input, _sender: ComponentSender<Self>, _: &Self::Root) {
         use Message::*;
 
         match message {
             VolumeChanged { id, volume } => {
                 self.server.set_volume(id, volume);
             },
-            Close => {
-                root.close();
-            }
+            Close => self.server.disconnect(),
         }
     }
 }

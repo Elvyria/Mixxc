@@ -13,12 +13,14 @@ use libpulse_binding::mainloop::standard::{Mainloop, IterateResult};
 use libpulse_binding::proplist::Proplist;
 use libpulse_binding::proplist::properties::APPLICATION_NAME;
 use libpulse_binding::volume::ChannelVolumes;
+use libpulse_binding::def::Retval;
 
 use super::{Message, Volume, AudioServer, Client};
 
 #[derive(Clone, Copy)]
 enum Command {
     SetVolume(u32, ChannelVolumes),
+    Disconnect,
 }
 
 #[derive(Clone)]
@@ -67,6 +69,7 @@ impl AudioServer for Pulse {
 
                         introspect.set_sink_input_volume(id, &cv, None);
                     },
+                    Command::Disconnect => mainloop.quit(Retval(0)),
                 }
             }
 
@@ -75,12 +78,16 @@ impl AudioServer for Pulse {
                 IterateResult::Err(e) => {
                     sender.emit(Message::Error(anyhow!("Pulse Audio: {e}]")))
                 }
-                IterateResult::Quit(_) => {
-                    sender.emit(Message::Disconnected(None));
-                    break
-                },
+                IterateResult::Quit(_) => break,
             }
         }
+
+        context.borrow_mut().disconnect();
+        sender.emit(Message::Disconnected(None));
+    }
+
+    fn disconnect(&self) {
+        self.tx.send(Command::Disconnect).unwrap();
     }
 
     fn set_volume(&self, id: u32, volume: Volume) {

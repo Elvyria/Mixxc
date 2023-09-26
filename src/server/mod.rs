@@ -70,5 +70,6 @@ pub enum AudioServerEnum {
 #[enum_dispatch(AudioServerEnum)]
 pub trait AudioServer {
     fn connect(&self, sender: Sender<Message>);
+    fn disconnect(&self);
     fn set_volume(&self, id: u32, volume: Volume);
 }

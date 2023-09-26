@@ -16,4 +16,8 @@ impl AudioServer for Pipewire {
     fn set_volume(&self, id: u32, volume:Volume) {
         unimplemented!()
     }
+
+    fn disconnect(&self) {
+        unimplemented!()
+    }
 }
