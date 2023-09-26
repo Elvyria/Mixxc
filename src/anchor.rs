@@ -1,6 +1,6 @@
-use std::str::FromStr;
-
 use bitflags::bitflags;
+
+use crate::error::CLIError;
 
 bitflags! {
     #[derive(Clone, Copy, PartialEq, Eq)]
@@ -13,19 +13,16 @@ bitflags! {
     }
 }
 
-#[derive(Debug)]
-pub struct ParseAnchorError(pub String);
+impl TryFrom<&String> for Anchor {
+    type Error = CLIError;
 
-impl FromStr for Anchor {
-    type Err = ParseAnchorError;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
+    fn try_from(s: &String) -> Result<Self, Self::Error> {
         match s.as_bytes().first().map(u8::to_ascii_lowercase) {
             Some(b't') => Ok(Anchor::Top),
             Some(b'l') => Ok(Anchor::Left),
             Some(b'b') => Ok(Anchor::Bottom),
             Some(b'r') => Ok(Anchor::Right),
-            _          => Err(ParseAnchorError(s.to_owned())),
+            _          => Err(CLIError::Anchor(s.to_owned())),
         }
     }
 }

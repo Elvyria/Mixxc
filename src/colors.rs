@@ -1,6 +1,6 @@
 use color_print::cstr;
 
-pub static ERROR: &str = cstr!("<r>Error</>");
+pub static ERROR: &str = cstr!("<s><r>Error</></>");
 
 #[allow(dead_code)]
 pub static WARNING: &str = cstr!("<r>Warning</>");

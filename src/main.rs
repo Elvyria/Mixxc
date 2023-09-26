@@ -8,16 +8,13 @@ mod error;
 use std::borrow::Cow;
 use std::ffi::OsStr;
 use std::path::{PathBuf, Path};
-use std::str::FromStr;
-use std::ops::BitOr;
 use std::fs::{self, File};
 use std::io::Write;
 
-use itertools::Itertools;
 use relm4::RelmApp;
 use argh::FromArgs;
 
-use error::{Error, ConfigError, StyleError};
+use error::{Error, CLIError, ConfigError, StyleError};
 use anchor::Anchor;
 use server::pulse::Pulse;
 use app::Config;
@@ -60,33 +57,25 @@ struct Args {
     version: bool,
 }
 
-fn main() {
+fn main() -> Result<(), Error> {
     let args: Args = argh::from_env();
 
     if args.version {
         println!("{} {}", env!("CARGO_PKG_NAME"), env!("CARGO_PKG_VERSION"));
-        return
+        return Ok(())
     }
 
-    let anchors = args.anchors.iter()
-        .map(String::as_ref)
-        .map(Anchor::from_str)
-        .fold_ok(Anchor::None, Anchor::bitor);
+    let mut anchors = Anchor::None;
 
-    let anchors = match anchors {
-        Ok(anchors) => anchors,
-        Err(e) => {
-            eprintln!("{}:'{}' is not a valid anchor point", colors::ERROR, e.0);
-            return
-        },
-    };
+    for a in args.anchors.iter().map(Anchor::try_from) {
+        anchors |= a?;
+    }
 
     warning(&args);
 
     let style = match args.userstyle {
         Some(p) if !p.exists() => {
-            eprintln!("{}: {p:?}: no such file", colors::ERROR);
-            return
+            return Err(CLIError::FileNotFound(p).into());
         }
         Some(p) => userstyle(p),
         None => {
@@ -101,7 +90,7 @@ fn main() {
 
                     match userstyle(&style_path) {
                         Ok(style) => return Ok(style),
-                        Err(Error::Style(StyleError::NotFound { e: _ })) => continue,
+                        Err(Error::Style(StyleError::NotFound(_))) => continue,
                         Err(e) => eprintln!("{}", e)
                     }
                 }
@@ -134,6 +123,8 @@ fn main() {
 
         server: Pulse::new().into(),
     });
+
+    Ok(())
 }
 
 #[allow(unused_variables)]
@@ -204,7 +195,7 @@ fn sass(style_path: impl AsRef<std::path::Path>) -> Result<String, Error> {
 
     let style_meta = match fs::metadata(style_path) {
         Ok(m) => m,
-        Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Err(StyleError::NotFound{e}.into()),
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Err(StyleError::NotFound(e).into()),
         Err(e) => {
             return Err(StyleError::Meta { e, path: style_path.to_owned() }.into())
         }
