@@ -261,7 +261,10 @@ impl Component for App {
             VolumeChanged { id, volume } => {
                 self.server.set_volume(id, volume);
             },
-            Close => self.server.disconnect(),
+            Close => {
+                self.server.disconnect();
+                relm4::main_application().quit();
+            }
         }
     }
 }
