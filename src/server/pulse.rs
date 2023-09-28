@@ -64,6 +64,9 @@ impl AudioServer for Pulse {
                 IterateResult::Quit(_) => break,
             }
         }
+
+        self.disconnect();
+        sender.emit(Message::Disconnected(None));
     }
 
     fn disconnect(&self) {
