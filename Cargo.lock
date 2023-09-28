@@ -934,7 +934,6 @@ dependencies = [
  "color-print",
  "enum_dispatch",
  "filetime",
- "flume",
  "grass",
  "gtk4-layer-shell",
  "libpulse-binding",

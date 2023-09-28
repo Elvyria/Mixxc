@@ -18,7 +18,7 @@ pub enum Volume {
 }
 
 impl Volume {
-    pub fn set(&mut self, v: f64) {
+    pub fn set_linear(&mut self, v: f64) {
         match self {
             Volume::Pulse(cv) => {
                 cv.set(cv.len(), VolumeLinear(v).into());
@@ -29,7 +29,7 @@ impl Volume {
         }
     }
 
-    pub fn get(&self) -> f64 {
+    pub fn get_linear(&self) -> f64 {
         match self {
             Volume::Pulse(cv) => {
                 VolumeLinear::from(cv.max()).0
@@ -53,15 +53,14 @@ pub struct Client {
 
 #[derive(Debug)]
 pub enum Message {
-    New(Client),
-    Changed(Client),
+    New(Box<Client>),
+    Changed(Box<Client>),
     Removed(u32),
     Error(Error),
     Disconnected(Option<Error>),
 }
 
 #[enum_dispatch]
-#[derive(Clone)]
 pub enum AudioServerEnum {
     Pulse,
     Pipewire,
@@ -72,4 +71,5 @@ pub trait AudioServer {
     fn connect(&self, sender: Sender<Message>);
     fn disconnect(&self);
     fn set_volume(&self, id: u32, volume: Volume);
+    fn set_mute(&self, id: u32, flag: bool);
 }

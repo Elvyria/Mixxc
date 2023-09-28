@@ -12,12 +12,17 @@ impl AudioServer for Pipewire {
         unimplemented!()
     }
 
-    #[allow(unused_variables)]
-    fn set_volume(&self, id: u32, volume:Volume) {
+    fn disconnect(&self) {
         unimplemented!()
     }
 
-    fn disconnect(&self) {
+    #[allow(unused_variables)]
+    fn set_volume(&self, id: u32, volume: Volume) {
+        unimplemented!()
+    }
+
+    #[allow(unused_variables)]
+    fn set_mute(&self, id: u32, flag: bool) {
         unimplemented!()
     }
 }

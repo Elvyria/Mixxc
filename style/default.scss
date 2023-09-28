@@ -29,44 +29,61 @@ window {
 		/* Hide Application Description */
 		/* font-size: 0; */
 	}
-}
 
-scale {
-	/* Slider Bar */
-	trough {
-		min-height: 4px;
+	.volume {
+		color: $fg;
+		padding-left: 15px;
+	}
 
-		background-color: lighter($bg);
-		border-radius: 10px;
+	scale {
+		/* Slider Bar */
+		trough {
+			min-height: 4px;
 
-		/* Slider Knob */
-		slider {
-			margin-left: 0;
-			margin-right: 0;
-
-			margin-top: -7px;
-			margin-bottom: -7px;
-
-			padding: 0 0;
-
-			border: none;
-			border-radius: 2px;
-
-			min-width: 6px;
-
-			background-color: $accent;
-		}
-
-		/* Slider Bar Filled */
-		highlight {
-			background-color: $accent;
+			background-color: lighter($bg);
 			border-radius: 10px;
+
+			/* Slider Knob */
+			slider {
+				margin-left: 0;
+				margin-right: 0;
+
+				margin-top: -7px;
+				margin-bottom: -7px;
+
+				padding: 0 0;
+
+				border: none;
+				border-radius: 2px;
+
+				min-width: 6px;
+
+				background-color: $accent;
+			}
+
+			/* Slider Bar Filled */
+			highlight {
+				background-color: $accent;
+				border-radius: 10px;
+			}
 		}
 	}
 
-	/* Volume */
-	value {
-		color: $fg;
-		padding-left: 15px;
+	&.muted {
+		.volume {
+			text-decoration: line-through;
+		}
+
+		scale {
+			trough {
+				slider {
+					background: shade($accent, 0.5);
+				}
+
+				highlight {
+					background: shade($accent, 0.5);
+				}
+			}
+		}
 	}
 }

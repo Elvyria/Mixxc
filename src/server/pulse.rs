@@ -1,8 +1,12 @@
 use std::borrow::Cow;
 use std::cell::RefCell;
 use std::rc::Rc;
+use std::sync::Mutex;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::time::Duration;
 
 use anyhow::anyhow;
+use libpulse_binding::def::Retval;
 use relm4::Sender;
 
 use libpulse_binding::callbacks::ListResult;
@@ -13,27 +17,22 @@ use libpulse_binding::mainloop::standard::{Mainloop, IterateResult};
 use libpulse_binding::proplist::Proplist;
 use libpulse_binding::proplist::properties::APPLICATION_NAME;
 use libpulse_binding::volume::ChannelVolumes;
-use libpulse_binding::def::Retval;
 
 use super::{Message, Volume, AudioServer, Client};
 
-#[derive(Clone, Copy)]
-enum Command {
-    SetVolume(u32, ChannelVolumes),
-    Disconnect,
-}
-
-#[derive(Clone)]
 pub struct Pulse {
-    tx: flume::Sender<Command>,
-    rx: flume::Receiver<Command>,
+    volume:     Mutex<Option<(u32, ChannelVolumes)>>,
+    mute:       Mutex<Option<(u32, bool)>>,
+    disconnect: AtomicBool,
 }
 
 impl Pulse {
     pub fn new() -> Self {
-        let (tx, rx) = flume::bounded(8);
-
-        Self { tx, rx }
+        Self {
+            volume:     Mutex::new(None),
+            mute:       Mutex::new(None),
+            disconnect: AtomicBool::new(false),
+        }
     }
 }
 
@@ -51,7 +50,7 @@ impl AudioServer for Pulse {
             let context = context.clone();
             let sender = sender.clone();
 
-            move || print_state(&sender, &context)
+            move || state_callback(&sender, &context)
         });
 
         {
@@ -60,26 +59,42 @@ impl AudioServer for Pulse {
             context.connect(None, FlagSet::NOAUTOSPAWN, None).unwrap();
         }
 
+        let mut block = false;
+
         loop {
-            if let Ok(command) = self.rx.try_recv() {
-                match command {
-                    Command::SetVolume(id, cv) => {
-                        let context = context.borrow_mut();
-                        let mut introspect = context.introspect();
-
-                        introspect.set_sink_input_volume(id, &cv, None);
-                    },
-                    Command::Disconnect => mainloop.quit(Retval(0)),
-                }
-            }
-
-            match mainloop.iterate(false) {
-                IterateResult::Success(_) => {},
+            match mainloop.iterate(block) {
+                IterateResult::Success(_) => {
+                    block = false;
+                },
                 IterateResult::Err(e) => {
                     sender.emit(Message::Error(anyhow!("Pulse Audio: {e}]")))
                 }
                 IterateResult::Quit(_) => break,
             }
+
+            if let Some((id, cv)) = self.volume.try_lock().ok().and_then(|mut lock| (*lock).take()) {
+                let context = context.borrow_mut();
+                let mut introspect = context.introspect();
+                introspect.set_sink_input_volume(id, &cv, None);
+
+                block = true;
+            }
+
+            if let Some((id, mute)) = self.mute.try_lock().ok().and_then(|mut lock| (*lock).take()) {
+                let context = context.borrow_mut();
+                let mut introspect = context.introspect();
+                introspect.set_sink_input_mute(id, mute, None);
+
+                block = true;
+            }
+
+            if self.disconnect.load(Ordering::Relaxed) {
+                mainloop.quit(Retval(0));
+
+                block = true;
+            };
+
+            std::thread::sleep(Duration::from_micros(500));
         }
 
         context.borrow_mut().disconnect();
@@ -87,12 +102,20 @@ impl AudioServer for Pulse {
     }
 
     fn disconnect(&self) {
-        self.tx.send(Command::Disconnect).unwrap();
+        self.disconnect.store(true, Ordering::Relaxed);
     }
 
     fn set_volume(&self, id: u32, volume: Volume) {
         if let Volume::Pulse(cv) = volume {
-            self.tx.try_send(Command::SetVolume(id, cv)).unwrap_or(());
+            if let Ok(mut lock) = self.volume.lock() {
+                *lock = Some((id, cv));
+            }
+        }
+    }
+
+    fn set_mute(&self, id: u32, flag: bool) {
+        if let Ok(mut lock) = self.mute.lock() {
+            *lock = Some((id, flag));
         }
     }
 }
@@ -125,7 +148,8 @@ fn subscribe_callback(sender: &Sender<Message>, context: &Context, _: Option<Fac
                         return
                     };
 
-                    sender.send(Message::New(info.into())).unwrap();
+                    let client = Box::new(info.into());
+                    sender.emit(Message::New(client));
                 }
             });
         },
@@ -137,18 +161,19 @@ fn subscribe_callback(sender: &Sender<Message>, context: &Context, _: Option<Fac
                         return
                     };
 
-                    sender.send(Message::Changed(info.into())).unwrap();
+                    let client = Box::new(info.into());
+                    sender.emit(Message::Changed(client));
                 }
             });
         },
         Some(Operation::Removed) => {
-            sender.send(Message::Removed(i)).unwrap();
+            sender.emit(Message::Removed(i));
         },
         None => {},
     }
 }
 
-fn print_state(sender: &Sender<Message>, context: &Rc<RefCell<Context>>) {
+fn state_callback(sender: &Sender<Message>, context: &Rc<RefCell<Context>>) {
     use libpulse_binding::context::State::*;
 
     let state = match context.try_borrow() {
@@ -164,7 +189,8 @@ fn print_state(sender: &Sender<Message>, context: &Rc<RefCell<Context>>) {
 
                 context.introspect().get_sink_input_info_list(move |r| {
                     if let ListResult::Item(sink_input) = r {
-                        sender.send(Message::New(sink_input.into())).unwrap();
+                        let client = Box::new(sink_input.into());
+                        sender.emit(Message::New(client));
                     }
                 });
             }

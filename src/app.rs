@@ -1,19 +1,19 @@
 use std::sync::Arc;
 
-use gtk::prelude::{BoxExt, GtkWindowExt, OrientableExt, ScaleExt, RangeExt, WidgetExt};
+use relm4::{gtk, ComponentParts, ComponentSender, Component, FactorySender, RelmWidgetExt};
 use relm4::factory::FactoryVecDeque;
-use relm4::gtk::pango::EllipsizeMode;
-use relm4::gtk::prelude::ApplicationExt;
-use relm4::gtk::{Orientation, PositionType, Overflow, Align, pango};
 use relm4::prelude::FactoryComponent;
-use relm4::{gtk, ComponentParts, ComponentSender, Component, FactorySender};
+
+use gtk::prelude::{ApplicationExt, BoxExt, GtkWindowExt, GestureSingleExt, OrientableExt, RangeExt, WidgetExt};
+use gtk::pango::EllipsizeMode;
+use gtk::{Orientation, Align, Justification};
 
 #[cfg(feature = "Wayland")]
 use gtk4_layer_shell::{Edge, Layer, LayerShell};
 
 use crate::anchor::Anchor;
 use crate::colors;
-use crate::server::{AudioServerEnum, AudioServer, self, Volume};
+use crate::server::{AudioServerEnum, AudioServer, self, Volume, Client};
 
 pub struct App {
     server: Arc<AudioServerEnum>,
@@ -35,23 +35,29 @@ struct Slider {
     #[do_not_track]
     id: u32,
     volume: Volume,
+    muted: bool,
     name: String,
     description: String,
 }
 
 #[derive(Debug)]
 pub enum Message {
-    VolumeChanged {
-        id: u32,
-        volume: Volume,
-    },
+    SetMute { id: u32, flag: bool },
+    VolumeChanged { id: u32, volume: Volume, },
     Close
+}
+
+#[derive(Debug)]
+pub enum SliderMessage {
+    Mute,
+    ValueChange(f64),
+    ServerChange(Box<Client>)
 }
 
 #[relm4::factory]
 impl FactoryComponent for Slider {
     type Init = server::Client;
-    type Input = f64;
+    type Input = SliderMessage;
     type Output = Message;
     type ParentWidget = gtk::Box;
     type CommandOutput = ();
@@ -61,18 +67,21 @@ impl FactoryComponent for Slider {
             add_css_class: "client",
             set_orientation: Orientation::Vertical,
 
+            #[track = "self.changed(Slider::muted())"]
+            set_class_active: ("muted", self.muted),
+
             gtk::Label {
                 #[track = "self.changed(Slider::name())"]
-                add_css_class: "name",
                 set_label: &self.name,
+                add_css_class: "name",
                 set_halign: Align::Start,
                 set_ellipsize: EllipsizeMode::End,
             },
 
             gtk::Label {
                 #[track = "self.changed(Slider::description())"]
-                add_css_class: "description",
                 set_label: &self.description,
+                add_css_class: "description",
                 set_halign: Align::Start,
                 set_ellipsize: EllipsizeMode::End,
             },
@@ -82,16 +91,28 @@ impl FactoryComponent for Slider {
 
                 gtk::Scale::with_range(Orientation::Horizontal, 0.0, 1.0, 0.005) {
                     #[track = "self.changed(Slider::volume())"]
-                    set_value: self.volume.get(),
+                    set_value: self.volume.get_linear(),
                     set_hexpand: true,
                     set_slider_size_fixed: false,
-                    set_draw_value: true,
-                    set_value_pos: PositionType::Right,
-                    set_format_value_func: |_, value| format!("{:.0}%", value * 100.0),
                     connect_value_changed[sender] => move |scale| {
-                        sender.input(scale.value());
+                        sender.input(SliderMessage::ValueChange(scale.value()));
                     },
                 },
+
+                gtk::Label {
+                    #[watch]
+                    set_label: &format!("{:.0}%", self.volume.get_linear() * 100.0),
+                    add_css_class: "volume",
+                    set_width_chars: 5,
+                    set_max_width_chars: 5,
+                    set_justify: Justification::Center,
+                    add_controller = gtk::GestureClick {
+                        set_button: gtk::gdk::BUTTON_PRIMARY,
+                        connect_released[sender] => move |_, _, _, _| {
+                            sender.input(SliderMessage::Mute);
+                        }
+                    }
+                }
             }
         }
     }
@@ -102,14 +123,28 @@ impl FactoryComponent for Slider {
             name: init.name,
             description: init.description,
             volume: init.volume,
+            muted: init.muted,
 
             tracker: 0,
         }
     }
 
     fn update(&mut self, message: Self::Input, sender: FactorySender<Self>) {
-        self.volume.set(message);
-        sender.output(Message::VolumeChanged { id: self.id, volume: self.volume });
+        match message {
+            SliderMessage::Mute => {
+                sender.output(Message::SetMute { id: self.id, flag: !self.muted })
+            },
+            SliderMessage::ValueChange(v) => {
+                self.volume.set_linear(v);
+                sender.output(Message::VolumeChanged { id: self.id, volume: self.volume })
+            },
+            SliderMessage::ServerChange(client) => {
+                self.set_volume(client.volume);
+                self.set_muted(client.muted);
+                self.set_name(client.name);
+                self.set_description(client.description);
+            },
+        }
     }
 }
 
@@ -187,18 +222,12 @@ impl Component for App {
         match message {
             New(client) => {
                 let mut sliders = self.sliders.guard();
-                sliders.push_back(client);
+                sliders.push_back(*client);
             }
             Changed(client) => {
-                let mut sliders = self.sliders.guard();
-
-                let Some(slider) = sliders.iter_mut().find(|slider| slider.id == client.id) else {
-                    return
-                };
-
-                slider.set_volume(client.volume);
-                slider.set_name(client.name);
-                slider.set_description(client.description);
+                if let Some(index) = self.sliders.iter().position(|slider| slider.id == client.id) {
+                    self.sliders.send(index, SliderMessage::ServerChange(client))
+                }
             }
             Removed(id) => {
                 let mut sliders = self.sliders.guard();
@@ -226,6 +255,9 @@ impl Component for App {
         use Message::*;
 
         match message {
+            SetMute { id, flag } => {
+                self.server.set_mute(id, flag);
+            }
             VolumeChanged { id, volume } => {
                 self.server.set_volume(id, volume);
             },

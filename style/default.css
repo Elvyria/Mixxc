@@ -32,6 +32,24 @@ window {
 	/* font-size: 0; */
 }
 
+.client .volume {
+	color: @fg;
+	padding-left: 10px;
+	padding-bottom: 2px;
+}
+
+.client.muted .volume {
+	text-decoration: line-through;
+}
+
+.client.muted slider {
+	background: shade(@accent, 0.5);
+}
+
+.client.muted highlight {
+	background: shade(@accent, 0.5);
+}
+
 /* Slider Knob */
 scale > trough > slider {
 	margin-left: 0;
@@ -66,10 +84,4 @@ scale > trough > highlight {
 
 	border: none;
 	border-radius: 10px;
-}
-
-/* Volume */
-scale > value {
-	color: @fg;
-	padding-left: 15px;
 }
