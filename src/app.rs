@@ -206,6 +206,7 @@ impl Component for App {
         ComponentParts { model, widgets }
     }
 
+    #[allow(unused_variables)]
     fn update_cmd(&mut self, message: Self::CommandOutput, sender: ComponentSender<Self>, window: &Self::Root) {
         use server::Message::*;
 
