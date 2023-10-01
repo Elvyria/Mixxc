@@ -62,11 +62,13 @@ GSK_RENDERER=cairo GTK_USE_PORTAL=0 mixxc
 * [GTK4](https://www.gtk.org/)
 * [gtk4-layer-shell](https://github.com/wmww/gtk4-layer-shell) (Feature: Wayland)
 * [libpulseaudio](https://www.freedesktop.org/wiki/Software/PulseAudio) (Feature: PulseAudio)
+* [libxcb](https://xcb.freedesktop.org/) (Feature: X11)
 
 ## Features
 Some features can be enabled at compile time.
 * [Sass](https://sass-lang.com/) - Allows you to use SCSS instead of CSS.
 * [Wayland](https://wayland.freedesktop.org/) - Uses wlr-layer-shell to imitate window positioning.
+* [X11](https://www.x.org/) - Sets WM hints and properties, and repositions the window.
 
 ## Installation
 Can be installed from [crates.io](https://crates.io/) with `cargo`:
