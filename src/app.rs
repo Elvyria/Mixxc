@@ -8,9 +8,6 @@ use gtk::prelude::{ApplicationExt, GtkWindowExt, BoxExt, GestureSingleExt, Orien
 use gtk::pango::EllipsizeMode;
 use gtk::{Orientation, Align, Justification};
 
-#[cfg(feature = "Wayland")]
-use gtk4_layer_shell::{Edge, Layer, LayerShell};
-
 use crate::anchor::Anchor;
 use crate::colors;
 use crate::server::{AudioServerEnum, AudioServer, self, Volume, Client};
@@ -158,6 +155,7 @@ impl Component for App {
     view! {
         gtk::Window {
             set_resizable: false,
+            set_title: Some(crate::APP_NAME),
             set_decorated: false,
 
             add_controller = gtk::EventControllerMotion {
@@ -197,19 +195,7 @@ impl Component for App {
         let widgets = view_output!();
 
         #[cfg(feature = "Wayland")]
-        {
-            window.init_layer_shell();
-            window.set_layer(Layer::Top);
-            window.set_title(Some(crate::APP_NAME));
-            window.set_namespace("volume-mixer");
-
-            for (i, anchor) in config.anchors.iter().enumerate() {
-                let edge = anchor.try_into().unwrap();
-
-                window.set_anchor(edge, true);
-                window.set_margin(edge, *config.margins.get(i).unwrap_or(&0));
-            }
-        }
+        Self::init_wayland(window, config.anchors, &config.margins);
 
         #[cfg(feature = "X11")]
         window.connect_realize(move |w| Self::realize_x11(w, config.anchors, config.margins.clone()));
@@ -276,19 +262,3 @@ impl Component for App {
         }
     }
 }
-
-#[cfg(feature = "Wayland")]
-impl TryFrom<Anchor> for Edge {
-    type Error = ();
-
-    fn try_from(anchor: Anchor) -> Result<Self, ()> {
-        match anchor {
-            Anchor::Top    => Ok(Edge::Top),
-            Anchor::Left   => Ok(Edge::Left),
-            Anchor::Bottom => Ok(Edge::Bottom),
-            Anchor::Right  => Ok(Edge::Right),
-            _              => Err(())
-        }
-    }
-}
-
