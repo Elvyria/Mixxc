@@ -3,6 +3,7 @@ mod server;
 mod app;
 mod anchor;
 mod colors;
+mod proto;
 mod error;
 
 use std::borrow::Cow;

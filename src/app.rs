@@ -4,7 +4,7 @@ use relm4::{gtk, ComponentParts, ComponentSender, Component, FactorySender, Relm
 use relm4::factory::FactoryVecDeque;
 use relm4::prelude::FactoryComponent;
 
-use gtk::prelude::{ApplicationExt, BoxExt, GtkWindowExt, GestureSingleExt, OrientableExt, RangeExt, WidgetExt};
+use gtk::prelude::{ApplicationExt, GtkWindowExt, BoxExt, GestureSingleExt, OrientableExt, RangeExt, WidgetExt};
 use gtk::pango::EllipsizeMode;
 use gtk::{Orientation, Align, Justification};
 
@@ -158,6 +158,7 @@ impl Component for App {
     view! {
         gtk::Window {
             set_resizable: false,
+            set_decorated: false,
 
             add_controller = gtk::EventControllerMotion {
                 connect_leave[sender] => move |motion| {
@@ -181,7 +182,7 @@ impl Component for App {
         sender.spawn_command({
             let server = server.clone();
 
-            move |sender| server.connect(sender) 
+            move |sender| server.connect(sender)
         });
 
         let sliders = FactoryVecDeque::builder(gtk::Box::default())
@@ -210,19 +211,26 @@ impl Component for App {
             }
         }
 
+        #[cfg(feature = "X11")]
+        window.connect_realize(Self::realize_x11);
+
         window.set_default_height(config.height as i32);
         window.set_default_width(config.width as i32);
 
         ComponentParts { model, widgets }
     }
 
-    fn update_cmd(&mut self, message: Self::CommandOutput, sender: ComponentSender<Self>, _: &Self::Root) {
+    fn update_cmd(&mut self, message: Self::CommandOutput, sender: ComponentSender<Self>, window: &Self::Root) {
         use server::Message::*;
 
         match message {
             New(client) => {
                 let mut sliders = self.sliders.guard();
                 sliders.push_back(*client);
+                sliders.drop();
+
+                #[cfg(feature = "X11")]
+                window.size_allocate(&window.allocation(), -1);
             }
             Changed(client) => {
                 if let Some(index) = self.sliders.iter().position(|slider| slider.id == client.id) {
@@ -283,3 +291,4 @@ impl TryFrom<Anchor> for Edge {
         }
     }
 }
+
