@@ -135,6 +135,11 @@ fn warning(args: &Args) {
         println!("{}: You are trying to use Mixxc on Wayland, but '{}' feature wasn't included at compile time!", colors::WARNING, colors::WAYLAND)
     }
 
+    #[cfg(not(feature = "X11"))]
+    if std::env::var("XDG_SESSION_TYPE") == Ok("x11".to_owned()) {
+        println!("{}: You are trying to use Mixxc on X Window System, but '{}' feature wasn't included at compile time!", colors::WARNING, colors::X11);
+    }
+
     #[cfg(not(feature = "Sass"))]
     if let Some(p) = &args.userstyle {
         let extension = p.extension().and_then(OsStr::to_str);
