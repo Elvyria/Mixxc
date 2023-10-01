@@ -26,3 +26,24 @@ impl TryFrom<&String> for Anchor {
         }
     }
 }
+
+#[cfg(feature = "X11")]
+impl Anchor {
+    pub fn position(&self, margins: &[i32], screen: (u32, u32), window: (u32, u32)) -> (i32, i32) {
+        let (mut x, mut y) = (0i32, 0i32);
+
+        for (i, anchor) in self.iter().enumerate() {
+            let margin = margins.get(i).unwrap_or(&0);
+
+            match anchor {
+                Anchor::Top => y += margin,
+                Anchor::Left => x += margin,
+                Anchor::Bottom => y += screen.1 as i32 - window.1 as i32 - margin,
+                Anchor::Right => x += screen.0 as i32 - window.0 as i32 - margin,
+                _ => {},
+            }
+        }
+
+        (x, y)
+    }
+}

@@ -1,33 +1,62 @@
+use std::rc::Rc;
+
 use relm4::{gtk, Component};
 
 use gtk::prelude::{Cast, NativeExt, WidgetExt};
-use gdk_x11::X11Surface;
+
+use gdk_x11::prelude::SurfaceExt;
+use gdk_x11::{X11Surface, X11Display};
 
 use x11rb::connection::Connection;
 use x11rb::errors::ReplyError;
-use x11rb::protocol::xproto::{PropMode, AtomEnum, ClientMessageEvent, CLIENT_MESSAGE_EVENT, EventMask};
+use x11rb::protocol::xinerama::get_screen_size;
+use x11rb::protocol::xproto::{PropMode, AtomEnum, ClientMessageEvent, CLIENT_MESSAGE_EVENT, EventMask, ConnectionExt, ConfigureWindowAux};
 use x11rb::x11_utils::Serialize;
 
 use anyhow::Error;
 
+use crate::anchor::Anchor;
 use crate::app::App;
 
 impl App where Self: Component {
-    pub fn realize_x11(window: &<Self as Component>::Root) {
+    pub fn realize_x11(window: &<Self as Component>::Root, anchors: Anchor, margins: Vec<i32>) {
         let Ok(xsurface) = window.surface().downcast::<X11Surface>() else {
             return
         };
 
-        let xid = xsurface.xid() as u32;
-
-        let atoms = match realize(xid) {
-            Ok(atoms) => atoms,
-            Err(e) => { eprintln!("{}", e); return }
+        let Ok(xdisplay) = window.display().downcast::<X11Display>() else {
+            return
         };
 
-        window.connect_map(move |_| {
-            if let Err(e) = map(atoms, xid) {
-                eprintln!("{}", e);
+        let (conn, _) = x11rb::connect(None).expect("connecting to X11");
+        let atoms = AtomCollection::new(&conn).unwrap().reply().expect("baking atomic cookie");
+
+        let conn = Rc::new(conn);
+
+        let xid = xsurface.xid() as u32;
+
+        set_wm_properties(conn.as_ref(), atoms, xid).expect("setting WM properties");
+
+        window.connect_map({
+            let conn = conn.clone();
+
+            move |_| add_wm_states(conn.as_ref(), atoms, xid).expect("updating _NET_WM_STATE")
+        });
+
+        let screen_num = xdisplay.screen().screen_number() as u32;
+        let screen = get_screen_size(conn.as_ref(), xid, screen_num).unwrap().reply().expect("collecting screen info");
+
+        window.surface().connect_layout({
+            let conn = conn.clone();
+
+            move |_, width, height| {
+                let (x, y) = anchors.position(&margins,
+                                              (screen.width, screen.height),
+                                              (width as u32, height as u32));
+
+                let config = ConfigureWindowAux::new().x(x).y(y);
+
+                conn.configure_window(xid, &config).unwrap().check().expect("moving window with `xcb_configure_window`");
             }
         });
     }
@@ -35,13 +64,8 @@ impl App where Self: Component {
 
 // Specification:
 // https://specifications.freedesktop.org/wm-spec/1.5/ar01s04.html
-fn realize(xid: u32) -> Result<AtomCollection, Error> {
+fn set_wm_properties(conn: &impl Connection, atoms: AtomCollection, xid: u32) -> Result<(), Error> {
     use x11rb::wrapper::ConnectionExt;
-
-    let (conn, _) = x11rb::connect(None)?;
-
-    let cookie = AtomCollection::new(&conn)?;
-    let atoms = cookie.reply()?;
 
     conn.change_property32(PropMode::REPLACE,
                            xid,
@@ -61,21 +85,17 @@ fn realize(xid: u32) -> Result<AtomCollection, Error> {
                            AtomEnum::CARDINAL,
                            &[2])?.check()?;
 
-    Ok(atoms)
+    Ok(())
 }
 
-fn map(atoms: AtomCollection, xid: u32) -> Result<(), Error> {
-    let (conn, _) = x11rb::connect(None)?;
-
-    add_wm_state(&conn, xid, atoms, atoms._NET_WM_STATE_ABOVE, atoms._NET_WM_STATE_STICKY)?;
-    add_wm_state(&conn, xid, atoms, atoms._NET_WM_STATE_SKIP_TASKBAR, atoms._NET_WM_STATE_SKIP_PAGER)?;
+fn add_wm_states(conn: &impl Connection, atoms: AtomCollection, xid: u32) -> Result<(), Error> {
+    add_wm_state(conn, xid, atoms, atoms._NET_WM_STATE_ABOVE, atoms._NET_WM_STATE_STICKY)?;
+    add_wm_state(conn, xid, atoms, atoms._NET_WM_STATE_SKIP_TASKBAR, atoms._NET_WM_STATE_SKIP_PAGER)?;
 
     Ok(())
 }
 
 fn send_message(conn: &impl Connection, xid: u32, event: ClientMessageEvent) -> Result<(), ReplyError> {
-    use x11rb::protocol::xproto::ConnectionExt;
-
     conn.send_event(false, xid, EventMask::SUBSTRUCTURE_REDIRECT | EventMask::STRUCTURE_NOTIFY, event.serialize())?.check()
 }
 
