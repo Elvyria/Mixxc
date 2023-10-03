@@ -1,3 +1,6 @@
+use std::sync::Arc;
+use std::sync::atomic::AtomicU32;
+
 use anyhow::Error;
 use enum_dispatch::enum_dispatch;
 use libpulse_binding::volume::{ChannelVolumes, VolumeLinear};
@@ -49,6 +52,8 @@ pub struct Client {
     pub icon: String,
     pub volume: Volume,
     pub muted: bool,
+
+    pub peak: Arc<AtomicU32>,
 }
 
 #[derive(Debug)]

@@ -1,4 +1,3 @@
-
 use relm4::Sender;
 
 use super::{AudioServer, Message, Volume};
