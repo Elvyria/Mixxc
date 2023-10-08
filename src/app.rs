@@ -1,12 +1,10 @@
 use std::sync::Arc;
-use std::sync::atomic::{AtomicU32, Ordering};
-use std::time::Duration;
 
 use relm4::{gtk, ComponentParts, ComponentSender, Component, FactorySender, RelmWidgetExt};
 use relm4::factory::FactoryVecDeque;
 use relm4::prelude::FactoryComponent;
 
-use gtk::prelude::{ApplicationExt, AdjustmentExt, GtkWindowExt, BoxExt, GestureSingleExt, OrientableExt, RangeExt, WidgetExt};
+use gtk::prelude::{ApplicationExt, GtkWindowExt, BoxExt, GestureSingleExt, OrientableExt, RangeExt, WidgetExt};
 use gtk::pango::EllipsizeMode;
 use gtk::{Orientation, Align, Justification};
 
@@ -34,20 +32,19 @@ struct Slider {
     #[do_not_track]
     id: u32,
     volume: Volume,
+    volume_percent: u8,
     muted: bool,
     name: String,
     description: String,
-    // #[do_not_track]
     #[no_eq]
-    peak: Arc<AtomicU32>,
+    peak: f64,
 }
 
 #[derive(Debug)]
 pub enum Message {
     SetMute { id: u32, flag: bool },
     VolumeChanged { id: u32, volume: Volume, },
-    Close,
-        Peak,
+    Close
 }
 
 #[derive(Debug)]
@@ -55,6 +52,7 @@ pub enum SliderMessage {
     Mute,
     ValueChange(f64),
     ServerChange(Box<Client>),
+    ServerPeak(f32),
 }
 
 #[relm4::factory]
@@ -63,7 +61,7 @@ impl FactoryComponent for Slider {
     type Input = SliderMessage;
     type Output = Message;
     type ParentWidget = gtk::Box;
-    type CommandOutput = Message;
+    type CommandOutput = ();
 
     view! {
         root = gtk::Box {
@@ -99,21 +97,24 @@ impl FactoryComponent for Slider {
                     set_slider_size_fixed: false,
                     set_show_fill_level: true,
                     set_restrict_to_fill_level: false,
-                    #[watch]
-                    set_fill_level: f32::from_bits(self.peak.load(Ordering::Relaxed)) as f64,
+                    #[track = "self.changed(Slider::peak())"]
+                    set_fill_level: self.peak,
+                    set_width_request: 1,
                     connect_fill_level_notify => |scale| {
-                        let range = scale.first_child().unwrap();
-                        range.first_child().unwrap().queue_resize();
-                    },
+                        let trough = scale.first_child().expect("getting GtkRange from GtkScale");
+                        let fill = trough.first_child().expect("getting fill from GtkRange");
 
+                        fill.queue_resize();
+                        fill.queue_draw();
+                    },
                     connect_value_changed[sender] => move |scale| {
                         sender.input(SliderMessage::ValueChange(scale.value()));
                     },
                 },
 
                 gtk::Label {
-                    #[track = "self.changed(Slider::volume())"]
-                    set_label: &format!("{:.0}%", self.volume.get_linear() * 100.0),
+                    #[track = "self.changed(Slider::volume_percent())"]
+                    set_label: &{ let mut s = self.volume_percent.to_string(); s.push('%'); s },
                     add_css_class: "volume",
                     set_width_chars: 5,
                     set_max_width_chars: 5,
@@ -129,42 +130,42 @@ impl FactoryComponent for Slider {
         }
     }
 
-    fn init_model(init: Self::Init, _: &Self::Index, sender: FactorySender<Self>) -> Self {
-        sender.spawn_command(move |sender| {
-            loop {
-                sender.emit(Message::Peak);
-                std::thread::sleep(Duration::from_millis(1));
-            }
-        });
-
+    fn init_model(init: Self::Init, _: &Self::Index, _: FactorySender<Self>) -> Self {
         Self {
             id: init.id,
             name: init.name,
             description: init.description,
             volume: init.volume,
+            volume_percent: (init.volume.get_linear() * 100.0) as u8,
             muted: init.muted,
-            peak: init.peak,
+            peak: 0.0,
 
             tracker: 0,
         }
     }
 
     fn update(&mut self, message: Self::Input, sender: FactorySender<Self>) {
-        match message {
-            SliderMessage::Mute => {
-                sender.output(Message::SetMute { id: self.id, flag: !self.muted })
-            },
-            SliderMessage::ValueChange(v) => {
-                self.volume.set_linear(v);
-                sender.output(Message::VolumeChanged { id: self.id, volume: self.volume })
-            },
-            SliderMessage::ServerChange(client) => {
-                self.set_volume(client.volume);
-                self.set_muted(client.muted);
-                self.set_name(client.name);
-                self.set_description(client.description);
-            },
-        }
+       self.reset();
+
+       match message {
+           SliderMessage::Mute => {
+               sender.output(Message::SetMute { id: self.id, flag: !self.muted })
+           },
+           SliderMessage::ValueChange(v) => {
+               self.volume.set_linear(v);
+               self.set_volume_percent((v * 100.0) as u8);
+
+               sender.output(Message::VolumeChanged { id: self.id, volume: self.volume })
+           },
+           SliderMessage::ServerChange(client) => {
+               self.set_volume(client.volume);
+               self.set_volume_percent((client.volume.get_linear() * 100.0) as u8);
+               self.set_muted(client.muted);
+               self.set_name(client.name);
+               self.set_description(client.description);
+           },
+           SliderMessage::ServerPeak(peak) => self.set_peak((peak * 0.9) as f64),
+       }
     }
 }
 
@@ -178,7 +179,7 @@ impl Component for App {
     view! {
         gtk::Window {
             set_resizable: false,
-            set_title: Some(crate::APP_NAME),
+            set_title:     Some(crate::APP_NAME),
             set_decorated: false,
 
             add_controller = gtk::EventControllerMotion {
@@ -244,9 +245,7 @@ impl Component for App {
             }
             Changed(client) => {
                 if let Some(index) = self.sliders.iter().position(|slider| slider.id == client.id) {
-                    // self.sliders.send(index, SliderMessage::ServerChange(client))
-
-                    // self.sliders.get(index)
+                    self.sliders.send(index, SliderMessage::ServerChange(client))
                 }
             }
             Removed(id) => {
@@ -255,6 +254,11 @@ impl Component for App {
                 let pos = sliders.iter().position(|e| e.id == id);
                 if let Some(pos) = pos {
                     sliders.remove(pos);
+                }
+            }
+            Peak(id, peak) => {
+                if let Some(index) = self.sliders.iter().position(|slider| slider.id == id) {
+                    self.sliders.send(index, SliderMessage::ServerPeak(peak))
                 }
             }
             Error(e) => eprintln!("{}: Audio Server :{e}", colors::ERROR),
@@ -285,7 +289,6 @@ impl Component for App {
                 self.server.disconnect();
                 relm4::main_application().quit();
             }
-            _ => {}
         }
     }
 }

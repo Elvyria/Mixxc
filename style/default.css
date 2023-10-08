@@ -22,15 +22,15 @@ window {
 	font-size: 1.1em;
 }
 
+/* Hide Application Name
 .client > .name {
-	/* Hide Application Name */
-	/* font-size: 0; */
-}
+	font-size: 0;
+} */
 
+/* Hide Application Description
 .client > .description {
-	/* Hide Application Description */
-	/* font-size: 0; */
-}
+	font-size: 0;
+} */
 
 .client .volume {
 	color: @fg;
@@ -48,6 +48,16 @@ window {
 
 .client.muted highlight {
 	background: shade(@accent, 0.5);
+}
+
+/* Slider Bar */
+scale > trough {
+	min-height: 4px;
+
+	background-color: lighter(@bg);
+
+	border: none;
+	border-radius: 10px;
 }
 
 /* Slider Knob */
@@ -68,16 +78,6 @@ scale > trough > slider {
 	background: @accent;
 }
 
-/* Slider Bar */
-scale > trough {
-	min-height: 4px;
-
-	background-color: lighter(@bg);
-
-	border: none;
-	border-radius: 10px;
-}
-
 /* Slider Bar Filled */
 scale > trough > highlight {
 	min-width: 2px;
@@ -87,4 +87,17 @@ scale > trough > highlight {
 
 	border: none;
 	border-radius: 10px;
+
+	margin: 1px;
+}
+
+/* Slider Peak */
+scale > trough > fill {
+	background: none;
+
+	border-top: 1px solid alpha(@accent, 0.8);
+	border-bottom: 1px solid alpha(@accent, 0.8);
+	border-radius: 10px;
+
+	margin: 0px;
 }

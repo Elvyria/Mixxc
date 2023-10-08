@@ -1,24 +1,26 @@
 use std::borrow::Cow;
 use std::cell::RefCell;
 use std::rc::Rc;
-use std::sync::atomic::{AtomicU32, Ordering};
 use std::sync::{Mutex, Arc};
 
 use anyhow::anyhow;
-use libpulse_binding::def::BufferAttr;
-use libpulse_binding::sample::{Format, Spec};
-use libpulse_binding::stream::{Stream, self, PeekResult};
 use relm4::Sender;
 
 use libpulse_binding::callbacks::ListResult;
-use libpulse_binding::context::subscribe::{InterestMaskSet, Operation};
 use libpulse_binding::context::introspect::SinkInputInfo;
+use libpulse_binding::context::subscribe::{InterestMaskSet, Operation};
 use libpulse_binding::context::{Context, FlagSet};
+use libpulse_binding::def::BufferAttr;
 use libpulse_binding::mainloop::standard::{Mainloop, IterateResult};
 use libpulse_binding::proplist::Proplist;
 use libpulse_binding::proplist::properties::APPLICATION_NAME;
+use libpulse_binding::sample::{Format, Spec};
+use libpulse_binding::stream::{Stream, self, PeekResult};
 
 use super::{Message, Volume, AudioServer, Client};
+
+// const_option_ext #91930 (https://github.com/rust-lang/rust/issues/91930)
+const PEAK_RATE: Option<&str> = option_env!("PULSE_PEAK_RATE");
 
 pub struct Pulse {
     context: Arc<Mutex<Option<Context>>>,
@@ -37,7 +39,6 @@ impl Peakers {
     }
 
     fn remove(&self, i: u32) {
-
         let mut peakers = self.0.borrow_mut();
 
         if let Some(pos) = peakers.iter().position(|stream| stream.borrow().get_index() == Some(i)) {
@@ -53,7 +54,6 @@ impl Pulse {
         Self {
             context: Arc::new(Mutex::new(None)),
             peakers: Peakers(Rc::new(RefCell::new(Vec::new()))),
-            // peakers: Arc::new(Vec::new()),
         }
     }
 }
@@ -76,9 +76,8 @@ impl AudioServer for Pulse {
             let context = self.context.clone();
             let sender = sender.clone();
             let peakers = self.peakers.clone();
-            // let mut peakers = self.peakers.clone();
 
-            move || state_callback(&sender, &context, &peakers)
+            move || state_callback(&context, &peakers, &sender)
         });
 
         {
@@ -93,7 +92,7 @@ impl AudioServer for Pulse {
             match mainloop.iterate(true) {
                 IterateResult::Success(_) => {},
                 IterateResult::Err(e) => {
-                    sender.emit(Message::Error(anyhow!("Pulse Audio: {e}]")))
+                    sender.emit(Message::Error(anyhow!("Pulse Audio: {e}")))
                 }
                 IterateResult::Quit(_) => break,
             }
@@ -130,50 +129,71 @@ impl AudioServer for Pulse {
     }
 }
 
-fn peak_callback(peak: &Arc<AtomicU32>, stream: &mut Stream, i: u32) {
-    if let Ok(PeekResult::Data(b)) = stream.peek() {
-        let b = <[u8; 4]>::try_from(b).unwrap();
+fn add_sink_input(info: ListResult<&SinkInputInfo>, context: &Arc<Mutex<Option<Context>>>, sender: &Sender<Message>, peakers: &Peakers) {
+    if let ListResult::Item(sink_input) = info {
+        let client: Box<Client> = Box::new(sink_input.into());
+        sender.emit(Message::New(client));
 
-        peak.store(f32::from_le_bytes(b).to_bits(), Ordering::Relaxed)
+        if let Ok(Some(context)) = context.lock().as_deref_mut() {
+            if let Some(p) = create_peeker(context, sender, sink_input.index) {
+                peakers.add(p)
+            }
+        }
     }
-
-    stream.discard().expect("discarding peak stream data");
 }
 
-fn create_peeker(peak: Arc<AtomicU32>, context: &mut Context, i: u32) -> Rc<RefCell<Stream>> {
+fn peak_callback(stream: &mut Stream, sender: &Sender<Message>, i: u32) {
+    match stream.peek() {
+        Ok(PeekResult::Data(b)) => {
+            let b = <[u8; 4]>::try_from(b).unwrap();
+            let peak = f32::from_le_bytes(b);
+
+            sender.emit(Message::Peak(i, peak));
+
+            stream.discard().expect("discarding peak stream data");
+        }
+        Ok(PeekResult::Hole(_)) => stream.discard().expect("discarding peak stream data"),
+        _ => {},
+    }
+}
+
+fn create_peeker(context: &mut Context, sender: &Sender<Message>, i: u32) -> Option<Rc<RefCell<Stream>>> {
     static PEAK_BUF_ATTR: &BufferAttr = &BufferAttr {
-        maxlength: u32::MAX, tlength:   u32::MAX,
-        prebuf:    u32::MAX, minreq:    u32::MAX,
+        maxlength: 0, tlength:   0,
+        prebuf:    0, minreq:    0,
         fragsize:  4,
     };
 
-    static PEAK_SPEC: Spec = Spec {
+    let peak_spec: Spec = Spec {
         channels: 1,
         format:   Format::F32le,
-        rate:     144,
+        rate:     PEAK_RATE.and_then(|s| s.parse::<u32>().ok()).unwrap_or(60),
     };
 
-    let mut stream = Stream::new(context, "Sink Input Peaker", &PEAK_SPEC, None).unwrap();
+    let mut stream = Stream::new(context, "Sink Input Peaker", &peak_spec, None)?;
+
+    let flags: stream::FlagSet = stream::FlagSet::PEAK_DETECT | stream::FlagSet::ADJUST_LATENCY;
 
     stream.set_monitor_stream(i).unwrap();
-    stream.connect_record(None, Some(PEAK_BUF_ATTR), stream::FlagSet::DONT_INHIBIT_AUTO_SUSPEND | stream::FlagSet::DONT_MOVE | stream::FlagSet::ADJUST_LATENCY | stream::FlagSet::PEAK_DETECT).unwrap();
+    stream.connect_record(None, Some(PEAK_BUF_ATTR), flags).unwrap();
 
     let stream = Rc::new(RefCell::new(stream));
 
     let peak_callback = Box::new({
-        // let sender = sender.clone();
-        let peak = peak.clone();
+        let sender = sender.clone();
         let stream = stream.clone();
 
-        move |_| peak_callback(&peak, &mut stream.borrow_mut(), i)
+        move |_| peak_callback(&mut stream.borrow_mut(), &sender, i)
     });
 
     stream.borrow_mut().set_read_callback(Some(peak_callback));
 
-    stream
+    Some(stream)
 }
 
 fn subscribe_callback(sender: &Sender<Message>, context: &Arc<Mutex<Option<Context>>>, peakers: &Peakers, op: Option<Operation>, i: u32) {
+    let Some(op) = op else { return };
+
     let introspect = {
         let context = context.lock().unwrap();
         let Some(context) = context.as_ref() else { return };
@@ -182,49 +202,35 @@ fn subscribe_callback(sender: &Sender<Message>, context: &Arc<Mutex<Option<Conte
     };
 
     match op {
-        Some(Operation::New) => {
+        Operation::New => {
             introspect.get_sink_input_info(i, {
                 let sender = sender.clone();
                 let context = context.clone();
                 let peakers = peakers.clone();
 
-                move |info| {
-                    if let ListResult::Item(info) = info {
-                        let client: Box<Client> = Box::new(info.into());
-                        let peak = client.peak.clone();
-                        sender.emit(Message::New(client));
-
-                        if let Ok(Some(context)) = context.lock().as_deref_mut() {
-                            let peeker = create_peeker(peak, context, i);
-                            peakers.add(peeker);
-                        }
-                    }
-                }
+                move |info: ListResult<&SinkInputInfo>| add_sink_input(info, &context, &sender, &peakers)
             });
         },
-        Some(Operation::Changed) => {
+        Operation::Changed => {
             introspect.get_sink_input_info(i, {
                 let sender = sender.clone();
 
                 move |info| {
-                    let ListResult::Item(info) = info else {
-                        return
+                    if let ListResult::Item(info) = info {
+                        let client = Box::new(info.into());
+                        sender.emit(Message::Changed(client));
                     };
-
-                    let client = Box::new(info.into());
-                    sender.emit(Message::Changed(client));
                 }
             });
         },
-        Some(Operation::Removed) => {
+        Operation::Removed => {
             sender.emit(Message::Removed(i));
             peakers.remove(i);
         },
-        None => {},
     }
 }
 
-fn state_callback(sender: &Sender<Message>, context: &Arc<Mutex<Option<Context>>>, peakers: &Peakers) {
+fn state_callback(context: &Arc<Mutex<Option<Context>>>, peakers: &Peakers, sender: &Sender<Message>) {
     use libpulse_binding::context::State::*;
 
     let Some(state) =
@@ -241,9 +247,7 @@ fn state_callback(sender: &Sender<Message>, context: &Arc<Mutex<Option<Context>>
                 let context = context.clone();
                 let peakers = peakers.clone();
 
-                move |_, op, i| {
-                    subscribe_callback(&sender, &context, &peakers, op, i);
-                }
+                move |_, op, i| subscribe_callback(&sender, &context, &peakers, op, i)
             });
 
             let info_callback = {
@@ -251,19 +255,7 @@ fn state_callback(sender: &Sender<Message>, context: &Arc<Mutex<Option<Context>>
                 let peakers = peakers.clone();
                 let context = context.clone();
 
-                move |r: ListResult<&SinkInputInfo>| {
-                    if let ListResult::Item(sink_input) = r {
-                        let client: Box<Client> = Box::new(sink_input.into());
-                        let peak = client.peak.clone();
-
-                        sender.emit(Message::New(client));
-
-                        if let Ok(Some(context)) = context.lock().as_deref_mut() {
-                            let peaker = create_peeker(peak, context, sink_input.index);
-                            peakers.add(peaker);
-                        }
-                    }
-                }
+                move |info: ListResult<&SinkInputInfo>| add_sink_input(info, &context, &sender, &peakers)
             };
 
             let mut lock = context.lock().unwrap();
@@ -292,7 +284,6 @@ impl <'a> From<&SinkInputInfo<'a>> for Client {
             icon: "".to_owned(),
             volume: Volume::Pulse(sink_input.volume),
             muted: sink_input.mute,
-            peak: Arc::new(AtomicU32::new(0)),
         }
     }
 }
