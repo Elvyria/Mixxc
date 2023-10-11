@@ -1,5 +1,6 @@
 use std::borrow::Cow;
 use std::cell::{RefCell, OnceCell};
+use std::pin::Pin;
 use std::rc::Rc;
 use std::sync::{Mutex, Arc};
 
@@ -28,23 +29,25 @@ pub struct Pulse {
     peakers: Peakers,
 }
 
+type Pb<T> = Pin<Box<T>>;
+
 #[derive(Clone)]
-struct Peakers(Rc<RefCell<Vec<Rc<RefCell<Stream>>>>>);
+struct Peakers(Rc<RefCell<Vec<Pb<Stream>>>>);
 
 unsafe impl Send for Peakers {}
 unsafe impl Sync for Peakers {}
 
 impl Peakers {
-    fn add(&self, peaker: Rc<RefCell<Stream>>) {
-        self.0.borrow_mut().push(peaker);
+    fn add(&self, peaker: Pb<Stream>) {
+        (*self.0).borrow_mut().push(peaker);
     }
 
     fn remove(&self, i: u32) {
-        let mut peakers = self.0.borrow_mut();
+        let mut peakers = (*self.0).borrow_mut();
 
-        if let Some(pos) = peakers.iter().position(|stream| stream.borrow().get_index() == Some(i)) {
-            let stream = peakers.get(pos).unwrap();
-            stream.borrow_mut().set_read_callback(None);
+        if let Some(pos) = peakers.iter().position(|stream| stream.get_index() == Some(i)) {
+            let stream = peakers.get_mut(pos).unwrap();
+            stream.set_read_callback(None);
             peakers.remove(pos);
         }
     }
@@ -158,7 +161,7 @@ fn peak_callback(stream: &mut Stream, sender: &Sender<Message>, i: u32) {
     }
 }
 
-fn create_peeker(context: &mut Context, sender: &Sender<Message>, i: u32) -> Option<Rc<RefCell<Stream>>> {
+fn create_peeker(context: &mut Context, sender: &Sender<Message>, i: u32) -> Option<Pb<Stream>> {
     static PEAK_BUF_ATTR: &BufferAttr = &BufferAttr {
         maxlength: 0, tlength:   0,
         prebuf:    0, minreq:    0,
@@ -184,16 +187,16 @@ fn create_peeker(context: &mut Context, sender: &Sender<Message>, i: u32) -> Opt
     stream.set_monitor_stream(i).unwrap();
     stream.connect_record(None, Some(PEAK_BUF_ATTR), flags).unwrap();
 
-    let stream = Rc::new(RefCell::new(stream));
+    let mut stream = Box::pin(stream);
 
     let peak_callback = Box::new({
         let sender = sender.clone();
-        let stream = stream.clone();
+        let stream: &mut Stream = unsafe { &mut *(stream.as_mut().get_mut() as *mut _) };
 
-        move |_| peak_callback(&mut stream.borrow_mut(), &sender, i)
+        move |_| peak_callback(stream, &sender, i)
     });
 
-    stream.borrow_mut().set_read_callback(Some(peak_callback));
+    stream.set_read_callback(Some(peak_callback));
 
     Some(stream)
 }
