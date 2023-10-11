@@ -1,5 +1,5 @@
 use std::borrow::Cow;
-use std::cell::RefCell;
+use std::cell::{RefCell, OnceCell};
 use std::rc::Rc;
 use std::sync::{Mutex, Arc};
 
@@ -19,8 +19,9 @@ use libpulse_binding::stream::{Stream, self, PeekResult};
 
 use super::{Message, Volume, AudioServer, Client};
 
-// const_option_ext #91930 (https://github.com/rust-lang/rust/issues/91930)
-const PEAK_RATE: Option<&str> = option_env!("PULSE_PEAK_RATE");
+thread_local! {
+    static PEAK_RATE: OnceCell<u32> = OnceCell::new();
+}
 
 pub struct Pulse {
     context: Arc<Mutex<Option<Context>>>,
@@ -164,11 +165,17 @@ fn create_peeker(context: &mut Context, sender: &Sender<Message>, i: u32) -> Opt
         fragsize:  4,
     };
 
-    let peak_spec: Spec = Spec {
+    let mut peak_spec = Spec {
         channels: 1,
         format:   Format::F32le,
-        rate:     PEAK_RATE.and_then(|s| s.parse::<u32>().ok()).unwrap_or(60),
+        rate:     0,
     };
+
+    PEAK_RATE.with(|rate| {
+        peak_spec.rate = *rate.get_or_init(|| {
+            std::env::var("PULSE_PEAK_RATE").ok().and_then(|s| s.parse().ok()).unwrap_or(60)
+        })
+    });
 
     let mut stream = Stream::new(context, "Sink Input Peaker", &peak_spec, None)?;
 
