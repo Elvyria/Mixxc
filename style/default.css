@@ -80,9 +80,6 @@ scale > trough > slider {
 
 /* Slider Bar Filled */
 scale > trough > highlight {
-	min-width: 2px;
-	min-height: 2px;
-
 	background-color: @accent;
 
 	border: none;
