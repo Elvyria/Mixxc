@@ -1,8 +1,9 @@
 use std::sync::Arc;
+use std::time::Duration;
 
-use relm4::{gtk, ComponentParts, ComponentSender, Component, FactorySender, RelmWidgetExt};
-use relm4::factory::FactoryVecDeque;
-use relm4::prelude::FactoryComponent;
+use relm4::{gtk, ComponentParts, ComponentSender, Component, RelmWidgetExt, AsyncFactorySender};
+use relm4::factory::{AsyncFactoryComponent, AsyncFactoryVecDeque};
+use relm4::prelude::DynamicIndex;
 
 use gtk::prelude::{ApplicationExt, GtkWindowExt, BoxExt, GestureSingleExt, OrientableExt, RangeExt, WidgetExt};
 use gtk::pango::EllipsizeMode;
@@ -14,7 +15,7 @@ use crate::server::{AudioServerEnum, AudioServer, self, Volume, Client};
 
 pub struct App {
     server: Arc<AudioServerEnum>,
-    sliders: FactoryVecDeque<Slider>,
+    sliders: AsyncFactoryVecDeque<Slider>,
 }
 
 pub struct Config {
@@ -55,11 +56,12 @@ pub enum SliderMessage {
     ServerPeak(f32),
 }
 
-#[relm4::factory]
-impl FactoryComponent for Slider {
+#[relm4::factory(async)]
+impl AsyncFactoryComponent for Slider {
     type Init = server::Client;
     type Input = SliderMessage;
     type Output = Message;
+    type ParentInput = Message;
     type ParentWidget = gtk::Box;
     type CommandOutput = ();
 
@@ -130,7 +132,24 @@ impl FactoryComponent for Slider {
         }
     }
 
-    fn init_model(init: Self::Init, _: &Self::Index, _: FactorySender<Self>) -> Self {
+    fn forward_to_parent(msg: Self::Output) -> Option<Self::ParentInput> {
+        Some(msg)
+    }
+
+    async fn init_model(init: Self::Init, _: &DynamicIndex, sender: AsyncFactorySender<Self>) -> Self {
+        sender.command(|sender, shutdown| {
+            shutdown
+                .register(async move {
+                    let mut interval = tokio::time::interval(Duration::from_millis(10));
+
+                    loop {
+                        interval.tick().await;
+                        sender.emit(());
+                    }
+                })
+                .drop_on_shutdown()
+        });
+
         Self {
             id: init.id,
             name: init.name,
@@ -144,7 +163,13 @@ impl FactoryComponent for Slider {
         }
     }
 
-    fn update(&mut self, message: Self::Input, sender: FactorySender<Self>) {
+    async fn update_cmd(&mut self, _: Self::CommandOutput, _: AsyncFactorySender<Self>) {
+        if self.peak > 0.0 {
+            self.set_peak((self.peak - 0.01).max(0.0));
+        }
+    }
+
+    async fn update(&mut self, message: Self::Input, sender: AsyncFactorySender<Self>) {
        self.reset();
 
        match message {
@@ -164,7 +189,13 @@ impl FactoryComponent for Slider {
                self.set_name(client.name);
                self.set_description(client.description);
            },
-           SliderMessage::ServerPeak(peak) => self.set_peak((peak * 0.9) as f64),
+           SliderMessage::ServerPeak(peak) => {
+               let peak = (peak * 0.9) as f64;
+
+               if peak > self.peak + 0.035 {
+                   self.set_peak(peak + 0.015);
+               }
+           },
        }
     }
 }
@@ -207,9 +238,7 @@ impl Component for App {
             move |sender| server.connect(sender)
         });
 
-        let sliders = FactoryVecDeque::builder(gtk::Box::default())
-            .launch()
-            .forward(sender.input_sender(), std::convert::identity);
+        let sliders = AsyncFactoryVecDeque::new(gtk::Box::default(), sender.input_sender());
 
         let model = App { server, sliders };
 
@@ -244,20 +273,20 @@ impl Component for App {
                 window.size_allocate(&window.allocation(), -1);
             }
             Changed(client) => {
-                if let Some(index) = self.sliders.iter().position(|slider| slider.id == client.id) {
+                if let Some(index) = self.sliders.iter().flatten().position(|slider| slider.id == client.id) {
                     self.sliders.send(index, SliderMessage::ServerChange(client))
                 }
             }
             Removed(id) => {
                 let mut sliders = self.sliders.guard();
 
-                let pos = sliders.iter().position(|e| e.id == id);
+                let pos = sliders.iter().flatten().position(|e| e.id == id);
                 if let Some(pos) = pos {
                     sliders.remove(pos);
                 }
             }
             Peak(id, peak) => {
-                if let Some(index) = self.sliders.iter().position(|slider| slider.id == id) {
+                if let Some(index) = self.sliders.iter().flatten().position(|slider| slider.id == id) {
                     self.sliders.send(index, SliderMessage::ServerPeak(peak))
                 }
             }
