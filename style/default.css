@@ -50,6 +50,11 @@ window {
 	background: shade(@accent, 0.5);
 }
 
+.client.muted fill {
+	border-top: 1px solid shade(@accent, 0.5);
+	border-bottom: 1px solid shade(@accent, 0.5);
+}
+
 /* Slider Bar */
 scale > trough {
 	min-height: 4px;
