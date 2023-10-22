@@ -20,6 +20,8 @@ window {
 	font-family: 'Noto Sans';
 	font-size: 1.1em;
 
+	animation: client-add 300ms ease;
+
 	.name {
 		/* Hide Application Name */
 		// font-size: 0;
@@ -108,5 +110,15 @@ window {
 				}
 			}
 		}
+	}
+}
+
+@keyframes client-add {
+	from {
+		transform: translateX(-200px);
+		opacity: 0;
+	}
+	to {
+		opacity: 1;
 	}
 }

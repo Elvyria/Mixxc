@@ -256,6 +256,10 @@ impl Component for App {
         window.set_default_height(config.height as i32);
         window.set_default_width(config.width as i32);
 
+        // Wait a tiny bit for server thread to get ready.
+        // This helps to skip initial empty window without introducing sync boilerplate.
+        std::thread::yield_now();
+
         ComponentParts { model, widgets }
     }
 

@@ -20,6 +20,8 @@ window {
 	color: white;
 	font-family: 'Noto Sans';
 	font-size: 1.1em;
+
+	animation: client-add 300ms ease;
 }
 
 /* Hide Application Name
@@ -104,4 +106,14 @@ scale > trough > fill {
 	border-radius: 10px;
 
 	margin: 0px;
+}
+
+@keyframes client-add {
+	from {
+		transform: translateX(-200px);
+		opacity: 0;
+	}
+	to {
+		opacity: 1;
+	}
 }
