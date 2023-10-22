@@ -74,7 +74,7 @@ Some features can be enabled at compile time.
 Can be installed from [crates.io](https://crates.io/) with `cargo`:
 
 ```sh
-cargo install mixxc --features ...
+cargo install mixxc --features Sass,Wayland...
 ```
 
 ## Building
@@ -83,5 +83,5 @@ To build this little thing, you'll need some [Rust](https://www.rust-lang.org/).
 ```sh
 git clone --depth 1 https://github.com/Elvyria/mixxc
 cd mixxc
-cargo build --release --features ...
+cargo build --release --features Sass,Wayland...
 ```
