@@ -61,7 +61,6 @@ impl AsyncFactoryComponent for Slider {
     type Init = server::Client;
     type Input = SliderMessage;
     type Output = Message;
-    type ParentInput = Message;
     type ParentWidget = gtk::Box;
     type CommandOutput = ();
 
@@ -132,10 +131,6 @@ impl AsyncFactoryComponent for Slider {
         }
     }
 
-    fn forward_to_parent(msg: Self::Output) -> Option<Self::ParentInput> {
-        Some(msg)
-    }
-
     async fn init_model(init: Self::Init, _: &DynamicIndex, sender: AsyncFactorySender<Self>) -> Self {
         sender.command(|sender, shutdown| {
             shutdown
@@ -174,13 +169,13 @@ impl AsyncFactoryComponent for Slider {
 
        match message {
            SliderMessage::Mute => {
-               sender.output(Message::SetMute { id: self.id, flag: !self.muted })
+               let _ = sender.output(Message::SetMute { id: self.id, flag: !self.muted });
            },
            SliderMessage::ValueChange(v) => {
                self.volume.set_linear(v);
                self.set_volume_percent((v * 100.0) as u8);
 
-               sender.output(Message::VolumeChanged { id: self.id, volume: self.volume })
+               let _ = sender.output(Message::VolumeChanged { id: self.id, volume: self.volume });
            },
            SliderMessage::ServerChange(client) => {
                self.set_volume(client.volume);
@@ -238,7 +233,9 @@ impl Component for App {
             move |sender| server.connect(sender)
         });
 
-        let sliders = AsyncFactoryVecDeque::new(gtk::Box::default(), sender.input_sender());
+        let sliders = AsyncFactoryVecDeque::builder()
+            .launch(gtk::Box::default())
+            .forward(sender.input_sender(), std::convert::identity);
 
         let model = App { server, sliders };
 
