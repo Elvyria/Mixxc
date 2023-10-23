@@ -9,6 +9,8 @@ use gtk::prelude::{ApplicationExt, GtkWindowExt, BoxExt, GestureSingleExt, Orien
 use gtk::pango::EllipsizeMode;
 use gtk::{Orientation, Align, Justification};
 
+use tokio_util::sync::CancellationToken;
+
 use crate::anchor::Anchor;
 use crate::colors;
 use crate::server::{AudioServerEnum, AudioServer, self, Volume, Client};
@@ -16,6 +18,8 @@ use crate::server::{AudioServerEnum, AudioServer, self, Volume, Client};
 pub struct App {
     server: Arc<AudioServerEnum>,
     sliders: AsyncFactoryVecDeque<Slider>,
+
+    shutdown: Option<CancellationToken>,
 }
 
 pub struct Config {
@@ -45,6 +49,7 @@ struct Slider {
 pub enum Message {
     SetMute { id: u32, flag: bool },
     VolumeChanged { id: u32, volume: Volume, },
+    InterruptClose,
     Close
 }
 
@@ -213,6 +218,11 @@ impl Component for App {
                     if motion.is_pointer() {
                         sender.input(Message::Close);
                     }
+                },
+                connect_enter[sender] => move |motion, _, _| {
+                    if motion.is_pointer() {
+                        sender.input(Message::InterruptClose);
+                    }
                 }
             },
 
@@ -237,7 +247,7 @@ impl Component for App {
             .launch(gtk::Box::default())
             .forward(sender.input_sender(), std::convert::identity);
 
-        let model = App { server, sliders };
+        let model = App { server, sliders, shutdown: None };
 
         let slider_box = model.sliders.widget();
         slider_box.set_spacing(config.spacing.map(i32::from).unwrap_or(20));
@@ -302,10 +312,14 @@ impl Component for App {
                 });
             }
             Disconnected(None) => relm4::main_application().quit(),
+            Quit => {
+                self.server.disconnect();
+                relm4::main_application().quit();
+            }
         }
     }
 
-    fn update(&mut self, message: Self::Input, _sender: ComponentSender<Self>, _: &Self::Root) {
+    fn update(&mut self, message: Self::Input, sender: ComponentSender<Self>, _: &Self::Root) {
         use Message::*;
 
         match message {
@@ -315,9 +329,30 @@ impl Component for App {
             VolumeChanged { id, volume } => {
                 self.server.set_volume(id, volume);
             },
+            InterruptClose => {
+                if let Some(shutdown) = self.shutdown.take() {
+                    shutdown.cancel();
+                }
+            },
             Close => {
-                self.server.disconnect();
-                relm4::main_application().quit();
+                if let Some(shutdown) = self.shutdown.take() {
+                    shutdown.cancel();
+                }
+
+                self.shutdown = Some(CancellationToken::new());
+                let token = self.shutdown.as_ref().unwrap().clone();
+
+                sender.command(|sender, shutdown| {
+                    shutdown.register(async move {
+                        tokio::select! {
+                            _ = token.cancelled() => {}
+                            _ = tokio::time::sleep(Duration::from_millis(150)) => {
+                                sender.emit(server::Message::Quit);
+                            }
+                        }
+                    })
+                    .drop_on_shutdown()
+                });
             }
         }
     }

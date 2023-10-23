@@ -59,6 +59,7 @@ pub enum Message {
     Peak(u32, f32),
     Error(Error),
     Disconnected(Option<Error>),
+    Quit,
 }
 
 #[enum_dispatch]
