@@ -177,6 +177,8 @@ impl FactoryComponent for Slider {
                let _ = sender.output(Message::SetMute { id: self.id, flag: !self.muted });
            },
            SliderMessage::ValueChange(v) => {
+               self.set_peak(self.peak * v / self.volume.get_linear());
+
                self.volume.set_linear(v);
                self.set_volume_percent((v * 100.0) as u8);
 
