@@ -17,6 +17,8 @@ use crate::server::{AudioServerEnum, AudioServer, self, Volume, Client};
 
 pub struct App {
     server: Arc<AudioServerEnum>,
+
+    max_volume: f64,
     sliders: FactoryVecDeque<Slider>,
 
     shutdown: Option<CancellationToken>,
@@ -28,6 +30,7 @@ pub struct Config {
     pub spacing: Option<u16>,
     pub anchors: Anchor,
     pub margins: Vec<i32>,
+    pub max_volume: f64,
 
     pub server: AudioServerEnum,
 }
@@ -39,6 +42,7 @@ struct Slider {
     volume: Volume,
     volume_percent: u8,
     muted: bool,
+    max: f64,
     name: String,
     description: String,
     #[no_eq]
@@ -96,7 +100,8 @@ impl FactoryComponent for Slider {
             gtk::Box {
                 set_orientation: Orientation::Horizontal,
 
-                gtk::Scale::with_range(Orientation::Horizontal, 0.0, 1.0, 0.005) {
+                #[local_ref]
+                scale -> gtk::Scale {
                     #[track = "self.changed(Slider::volume())"]
                     set_value: self.volume.get_linear(),
                     set_hexpand: true,
@@ -136,6 +141,15 @@ impl FactoryComponent for Slider {
         }
     }
 
+    fn init_widgets(&mut self, _: &Self::Index, root: &Self::Root, _: &<Self::ParentWidget as relm4::factory::FactoryView>::ReturnedWidget, sender: FactorySender<Self>) -> Self::Widgets {
+        // 0.00004 is a rounding error
+        let scale = gtk::Scale::with_range(Orientation::Horizontal, 0.0, self.max + 0.00004, 0.005);
+
+        let widgets = view_output!();
+
+        widgets
+    }
+
     fn init_model(init: Self::Init, _: &DynamicIndex, sender: FactorySender<Self>) -> Self {
         sender.command(|sender, shutdown| {
             shutdown
@@ -157,6 +171,7 @@ impl FactoryComponent for Slider {
             volume: init.volume,
             volume_percent: (init.volume.get_linear() * 100.0) as u8,
             muted: init.muted,
+            max: init.max_volume,
             peak: 0.0,
 
             tracker: 0,
@@ -249,7 +264,12 @@ impl Component for App {
             .launch(gtk::Box::default())
             .forward(sender.input_sender(), std::convert::identity);
 
-        let model = App { server, sliders, shutdown: None };
+        let model = App {
+            server,
+            max_volume: config.max_volume,
+            sliders,
+            shutdown: None
+        };
 
         let slider_box = model.sliders.widget();
         slider_box.set_spacing(config.spacing.map(i32::from).unwrap_or(20));
@@ -278,8 +298,11 @@ impl Component for App {
 
         match message {
             New(client) => {
+                let mut client = *client;
+                client.max_volume = f64::min(client.max_volume, self.max_volume);
+
                 let mut sliders = self.sliders.guard();
-                sliders.push_back(*client);
+                sliders.push_back(client);
                 sliders.drop();
 
                 #[cfg(feature = "X11")]

@@ -1,6 +1,5 @@
 use anyhow::Error;
 use enum_dispatch::enum_dispatch;
-use libpulse_binding::volume::{ChannelVolumes, VolumeLinear};
 use relm4::Sender;
 
 use self::pulse::Pulse;
@@ -11,7 +10,7 @@ pub mod pipewire;
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum Volume {
-    Pulse(ChannelVolumes),
+    Pulse(libpulse_binding::volume::ChannelVolumes),
 
     #[allow(dead_code)]
     Pipewire,
@@ -21,22 +20,16 @@ impl Volume {
     pub fn set_linear(&mut self, v: f64) {
         match self {
             Volume::Pulse(cv) => {
-                cv.set(cv.len(), VolumeLinear(v).into());
+                cv.set(cv.len(), libpulse_binding::volume::VolumeLinear(v).into())
             },
-            Volume::Pipewire => {
-                unimplemented!()
-            }
-        }
+            Volume::Pipewire  => unimplemented!(),
+        };
     }
 
     pub fn get_linear(&self) -> f64 {
         match self {
-            Volume::Pulse(cv) => {
-                VolumeLinear::from(cv.max()).0
-            }
-            Volume::Pipewire => {
-                unimplemented!()
-            }
+            Volume::Pulse(cv) => libpulse_binding::volume::VolumeLinear::from(cv.max()).0,
+            Volume::Pipewire  => unimplemented!(),
         }
     }
 }
@@ -48,6 +41,7 @@ pub struct Client {
     pub description: String,
     pub icon: String,
     pub volume: Volume,
+    pub max_volume: f64,
     pub muted: bool,
 }
 

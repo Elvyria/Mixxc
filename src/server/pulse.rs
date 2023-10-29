@@ -1,8 +1,8 @@
 use std::borrow::Cow;
-use std::cell::{RefCell, OnceCell};
+use std::cell::RefCell;
 use std::pin::Pin;
 use std::rc::Rc;
-use std::sync::{Mutex, Arc};
+use std::sync::{Mutex, Arc, OnceLock};
 
 use anyhow::anyhow;
 use relm4::Sender;
@@ -19,10 +19,6 @@ use libpulse_binding::sample::{Format, Spec};
 use libpulse_binding::stream::{Stream, self, PeekResult};
 
 use super::{Message, Volume, AudioServer, Client};
-
-thread_local! {
-    static PEAK_RATE: OnceCell<u32> = OnceCell::new();
-}
 
 pub struct Pulse {
     context: Arc<Mutex<Option<Context>>>,
@@ -174,10 +170,9 @@ fn create_peeker(context: &mut Context, sender: &Sender<Message>, i: u32) -> Opt
         rate:     0,
     };
 
-    PEAK_RATE.with(|rate| {
-        peak_spec.rate = *rate.get_or_init(|| {
-            std::env::var("PULSE_PEAK_RATE").ok().and_then(|s| s.parse().ok()).unwrap_or(60)
-        })
+    static PEAK_RATE: OnceLock<u32> = OnceLock::new();
+    peak_spec.rate = *PEAK_RATE.get_or_init(|| {
+        std::env::var("PULSE_PEAK_RATE").ok().and_then(|s| s.parse().ok()).unwrap_or(30)
     });
 
     let mut stream = Stream::new(context, "Sink Input Peaker", &peak_spec, None)?;
@@ -287,12 +282,17 @@ impl <'a> From<&SinkInputInfo<'a>> for Client {
         let name = sink_input.proplist.get_str("application.name").unwrap_or_default();
         let description = sink_input.name.as_ref().map(Cow::to_string).unwrap_or_default();
 
+        // This would be the correct approach, but things get weird after 255%
+        // static VOLUME_MAX: OnceLock<f64> = OnceLock::new();
+        // let max = *VOLUME_MAX.get_or_init(|| VolumeLinear::from(libpulse_binding::volume::Volume::ui_max()).0);
+
         Client {
             id: sink_input.index,
             name,
             description,
             icon: "".to_owned(),
             volume: Volume::Pulse(sink_input.volume),
+            max_volume: 2.55,
             muted: sink_input.mute,
         }
     }

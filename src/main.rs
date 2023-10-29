@@ -56,6 +56,10 @@ struct Args {
     /// print version
     #[argh(switch, short = 'v')]
     version: bool,
+
+    /// max volume level in percent (default: 100; 1-255)
+    #[argh(option, long = "max-volume")]
+    max_volume: Option<u8>,
 }
 
 fn main() -> Result<(), Error> {
@@ -120,6 +124,7 @@ fn main() -> Result<(), Error> {
         height:  args.height.unwrap_or(0),
         spacing: args.spacing,
         margins: args.margins,
+        max_volume: args.max_volume.unwrap_or(100).max(1) as f64 / 100.0,
         anchors,
 
         server: Pulse::new().into(),
