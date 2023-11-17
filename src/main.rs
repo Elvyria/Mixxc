@@ -159,7 +159,7 @@ fn config_dir() -> Result<PathBuf, ConfigError> {
     dir.push(crate::APP_BINARY);
 
     if !dir.exists() {
-        fs::create_dir(&dir).map_err(|e| ConfigError::Create { e, path: dir.clone() })?;
+        fs::create_dir(&dir).map_err(|e| ConfigError::Create { e, path: std::mem::take(&mut dir) })?;
     }
 
     if !dir.is_dir() {
@@ -230,7 +230,7 @@ fn sass(style_path: impl AsRef<std::path::Path>) -> Result<String, Error> {
 
     let compiled = grass::from_path(style_path, &grass::Options::default())?;
     if let Err(e) = fs::write(&cache, &compiled) {
-        eprintln!("{}", CacheError::Write { e, path: cache.clone() });
+        eprintln!("{}", CacheError::Write { e, path: std::mem::take(&mut cache) });
     }
 
     if let Err(e) = filetime::set_file_mtime(&cache, filetime::FileTime::from_system_time(style_mtime)) {
