@@ -142,26 +142,31 @@ fn add_sink_input(info: ListResult<&SinkInputInfo>, context: &Arc<Mutex<Option<C
     }
 }
 
+const FRAG_SIZE: u32 = 4;
+
+#[inline(never)]
 fn peak_callback(stream: &mut Stream, sender: &Sender<Message>, i: u32) {
     match stream.peek() {
         Ok(PeekResult::Data(b)) => {
-            let b = <[u8; 4]>::try_from(b).unwrap();
-            let peak = f32::from_le_bytes(b);
+            #[allow(clippy::assertions_on_constants)]
+            const _: () = debug_assert!(FRAG_SIZE == 4);
+
+            let peak: f32 = unsafe { *(b.as_ptr() as *const _) };
 
             sender.emit(Message::Peak(i, peak));
-
-            stream.discard().expect("discarding peak stream data");
         }
-        Ok(PeekResult::Hole(_)) => stream.discard().expect("discarding peak stream data"),
-        _ => {},
+        Ok(PeekResult::Hole(_)) => {},
+        _ => return,
     }
+
+    let _ = stream.discard();
 }
 
 fn create_peeker(context: &mut Context, sender: &Sender<Message>, i: u32) -> Option<Pb<Stream>> {
     static PEAK_BUF_ATTR: &BufferAttr = &BufferAttr {
         maxlength: 0, tlength:   0,
         prebuf:    0, minreq:    0,
-        fragsize:  4,
+        fragsize:  FRAG_SIZE,
     };
 
     let mut peak_spec = Spec {
