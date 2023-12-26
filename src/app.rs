@@ -289,7 +289,7 @@ impl Component for App {
                 let sender = sender.clone();
                 move |motion, _, _| {
                     if motion.is_pointer() {
-                        sender.input(Message::Close);
+                        sender.input(Message::InterruptClose);
                     }
                 }
             });
