@@ -53,6 +53,10 @@ struct Args {
     #[argh(option, short = 'u')]
     userstyle: Option<PathBuf>,
 
+    /// keep window open
+    #[argh(switch, short = 'k', long = "keep")]
+    keep: bool,
+
     /// print version
     #[argh(switch, short = 'v')]
     version: bool,
@@ -124,6 +128,7 @@ fn main() -> Result<(), Error> {
         height:  args.height.unwrap_or(0),
         spacing: args.spacing,
         margins: args.margins,
+        keep:    args.keep,
         max_volume: args.max_volume.unwrap_or(100).max(1) as f64 / 100.0,
         anchors,
 

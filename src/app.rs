@@ -30,6 +30,7 @@ pub struct Config {
     pub spacing: Option<u16>,
     pub anchors: Anchor,
     pub margins: Vec<i32>,
+    pub keep: bool,
     pub max_volume: f64,
 
     pub server: AudioServerEnum,
@@ -232,19 +233,6 @@ impl Component for App {
             set_title:     Some(crate::APP_NAME),
             set_decorated: false,
 
-            add_controller = gtk::EventControllerMotion {
-                connect_leave[sender] => move |motion| {
-                    if motion.is_pointer() {
-                        sender.input(Message::Close);
-                    }
-                },
-                connect_enter[sender] => move |motion, _, _| {
-                    if motion.is_pointer() {
-                        sender.input(Message::InterruptClose);
-                    }
-                }
-            },
-
             #[local_ref]
             slider_box -> gtk::Box {
                 add_css_class: "main",
@@ -286,6 +274,27 @@ impl Component for App {
 
         window.set_default_height(config.height as i32);
         window.set_default_width(config.width as i32);
+
+        if !config.keep {
+            let controller = gtk::EventControllerMotion::new();
+            controller.connect_leave({
+                let sender = sender.clone();
+                move |motion| {
+                    if motion.is_pointer() {
+                        sender.input(Message::Close);
+                    }
+                }
+            });
+            controller.connect_enter({
+                let sender = sender.clone();
+                move |motion, _, _| {
+                    if motion.is_pointer() {
+                        sender.input(Message::Close);
+                    }
+                }
+            });
+            window.add_controller(controller);
+        }
 
         // Wait a tiny bit for server thread to get ready.
         // This helps to skip initial empty window without introducing sync boilerplate.
