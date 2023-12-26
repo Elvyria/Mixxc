@@ -52,10 +52,23 @@ Mixxc is developed and tested with:
 
 If your setup is different and you experience issues, feel free to file a bug report.
 
-## Startup Time
+## Tips
+### Startup Time
 If startup seems a bit slow, try this:
 ```sh
 GSK_RENDERER=cairo GTK_USE_PORTAL=0 mixxc
+```
+### Manual Closing
+By default, when the mouse cursor leaves window boundaries, it automatically closes.  
+This is a workaround for window managers that don't send `close` request to layer-shells under Wayland.  
+If this behavior is not desirable, you can disable it:
+```sh
+mixxc --keep
+```
+### Toggle Window
+If you want to toggle window with click of a button, Unix way is the way:
+```sh
+pkill mixxc | mixxc
 ```
 
 ## Dependencies
