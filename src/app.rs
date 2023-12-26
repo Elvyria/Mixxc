@@ -111,13 +111,6 @@ impl FactoryComponent for Slider {
                     #[track = "self.changed(Slider::peak())"]
                     set_fill_level: self.peak,
                     set_width_request: 1,
-                    connect_fill_level_notify => |scale| {
-                        let trough = scale.first_child().expect("getting GtkRange from GtkScale");
-                        let fill = trough.first_child().expect("getting fill from GtkRange");
-
-                        fill.queue_resize();
-                        fill.queue_draw();
-                    },
                     connect_value_changed[sender] => move |scale| {
                         sender.input(SliderMessage::ValueChange(scale.value()));
                     },
@@ -146,6 +139,15 @@ impl FactoryComponent for Slider {
         let scale = gtk::Scale::with_range(Orientation::Horizontal, 0.0, self.max + 0.00004, 0.005);
 
         let widgets = view_output!();
+
+        {
+            let scale = &widgets.scale;
+
+            let trough = scale.first_child().expect("getting GtkRange from GtkScale");
+            let fill = trough.first_child().expect("getting fill from GtkRange");
+
+            scale.connect_fill_level_notify(move |_| fill.queue_resize());
+        }
 
         widgets
     }
