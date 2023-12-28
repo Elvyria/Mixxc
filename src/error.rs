@@ -70,7 +70,6 @@ pub enum StyleError {
     #[error("Unable to write a style to a file ({path})\n{e}")]
     Write { e: io::Error, path: PathBuf },
 
-    #[cfg(feature = "Sass")]
     #[error(transparent)]
     NotFound(io::Error),
 }
@@ -78,6 +77,9 @@ pub enum StyleError {
 #[cfg(feature = "Sass")]
 #[derive(Error, Debug)]
 pub enum CacheError {
+    #[error("Unable to create a cache file ({path})\n{e}")]
+    Create { e: io::Error, path: PathBuf },
+
     #[error("Unable to read a cache file ({path})\n{e}")]
     Read { e: io::Error, path: PathBuf },
 

@@ -103,7 +103,7 @@ fn main() -> Result<(), Error> {
                         Err(e) => eprintln!("{}", e)
                     }
                 }
-                
+
                 style_path.set_extension("css");
 
                 userstyle(style_path)
@@ -219,28 +219,38 @@ fn sass(style_path: impl AsRef<std::path::Path>) -> Result<String, Error> {
 
     let style_mtime = style_meta.modified().map_err(|e| StyleError::MTime { e, path: style_path.to_owned() })?;
 
-    let mut cache = xdg::cache_dir();
-    cache.push(crate::APP_BINARY);
-    cache.set_extension("css");
+    let mut cache_path = xdg::cache_dir();
+    cache_path.push(crate::APP_BINARY);
+    cache_path.set_extension("css");
 
-    use error::CacheError;
-
-    if let Ok(cache_meta) = fs::metadata(&cache) {
+    if let Ok(cache_meta) = fs::metadata(&cache_path) {
         if Some(style_mtime) == cache_meta.modified().ok() {
-            return fs::read_to_string(&cache)
-                .map_err(|e| CacheError::Read { e, path: cache })
+            return fs::read_to_string(&cache_path)
+                .map_err(|e| error::CacheError::Read { e, path: cache_path })
                 .map_err(Into::into);
         }
     }
 
     let compiled = grass::from_path(style_path, &grass::Options::default())?;
-    if let Err(e) = fs::write(&cache, &compiled) {
-        eprintln!("{}", CacheError::Write { e, path: std::mem::take(&mut cache) });
-    }
 
-    if let Err(e) = filetime::set_file_mtime(&cache, filetime::FileTime::from_system_time(style_mtime)) {
-        eprintln!("{}", CacheError::MTime { e, path: cache });
+    if let Err(e) = cache(cache_path, &compiled, style_mtime) {
+        eprintln!("{e}");
     }
 
     Ok(compiled)
+}
+
+#[cfg(feature = "Sass")]
+fn cache(mut path: PathBuf, style: &str, time: std::time::SystemTime) -> Result<(), error::CacheError> {
+    use error::CacheError;
+    use std::mem::take;
+
+    let mut f = File::create(&path)
+        .map_err(|e| CacheError::Create { e, path: take(&mut path) })?;
+
+    f.write_all(style.as_bytes())
+        .map_err(|e| CacheError::Write { e, path: take(&mut path) })?;
+
+    f.set_modified(time)
+        .map_err(|e| CacheError::MTime { e, path: take(&mut path) })
 }
