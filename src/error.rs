@@ -18,10 +18,6 @@ pub enum Error {
     #[cfg(feature = "Sass")]
     #[error(transparent)]
     Cache(#[from] CacheError),
-
-    #[cfg(feature = "Sass")]
-    #[error(transparent)]
-    Sass(#[from] Box<grass::Error>),
 }
 
 impl Debug for Error {
@@ -72,6 +68,10 @@ pub enum StyleError {
 
     #[error(transparent)]
     NotFound(io::Error),
+
+    #[cfg(feature = "Sass")]
+    #[error(transparent)]
+    Sass(#[from] Box<grass::Error>),
 }
 
 #[cfg(feature = "Sass")]

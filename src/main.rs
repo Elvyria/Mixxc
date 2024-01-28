@@ -5,17 +5,15 @@ mod anchor;
 mod colors;
 mod proto;
 mod error;
+mod style;
 
-use std::borrow::Cow;
-use std::ffi::OsStr;
-use std::path::{PathBuf, Path};
-use std::fs::{self, File};
-use std::io::Write;
+use std::path::PathBuf;
+use std::fs;
 
 use relm4::RelmApp;
 use argh::FromArgs;
 
-use error::{Error, CLIError, ConfigError, StyleError};
+use error::{Error, ConfigError};
 use anchor::Anchor;
 use server::pulse::Pulse;
 use app::Config;
@@ -23,8 +21,6 @@ use app::Config;
 static APP_NAME:   &str = "Mixxc";
 static APP_ID:     &str = "elvy.mixxc";
 static APP_BINARY: &str = "mixxc";
-
-static DEFAULT_STYLE: &str = include_str!("../style/default.css");
 
 #[derive(FromArgs)]
 ///Minimalistic volume mixer.
@@ -83,39 +79,15 @@ fn main() -> Result<(), Error> {
     warning(&args);
 
     let style = match args.userstyle {
-        Some(p) if !p.exists() => {
-            return Err(CLIError::FileNotFound(p).into());
-        }
-        Some(p) => userstyle(p),
-        None => {
-            config_dir()
-            .map_err(Into::into)
-            .and_then(|mut style_path| {
-                style_path.push("style");
-
-                #[cfg(feature = "Sass")]
-                for ext in ["scss", "sass"] {
-                    style_path.set_extension(ext);
-
-                    match userstyle(&style_path) {
-                        Ok(style) => return Ok(style),
-                        Err(Error::Style(StyleError::NotFound(_))) => continue,
-                        Err(e) => eprintln!("{}", e)
-                    }
-                }
-
-                style_path.set_extension("css");
-
-                userstyle(style_path)
-            })
-        },
+        Some(p) => style::read(p),
+        None    => style::find(config_dir()?),
     };
 
     let style = match style {
         Ok(s) => s,
         Err(e) => {
-            eprintln!("{}\nFalling back to default style...", e);
-            Cow::Borrowed(DEFAULT_STYLE)
+            eprintln!("{}", e);
+            style::default()
         }
     };
 
@@ -172,85 +144,4 @@ fn config_dir() -> Result<PathBuf, ConfigError> {
     }
 
     Ok(dir)
-}
-
-fn userstyle(path: impl AsRef<Path>) -> Result<Cow<'static, str>, Error> {
-    let path = path.as_ref();
-
-    match path.extension().and_then(OsStr::to_str)
-    {
-        #[cfg(feature = "Sass")]
-        Some("sass" | "scss") => sass(path).map(Cow::Owned),
-        Some("css") if !path.exists() => {
-            let mut fd = File::create(path).map_err(|e| StyleError::Create { e, path: path.to_owned() })?;
-            fd.write_all(DEFAULT_STYLE.as_bytes()).map_err(|e| StyleError::Write { e, path: path.to_owned() })?;
-
-            Ok(Cow::Borrowed(DEFAULT_STYLE))
-        },
-        Some("css") => {
-            fs::read_to_string(path)
-                .map(Cow::Owned)
-                .map_err(|e| StyleError::Read { e, path: path.to_owned() })
-                .map_err(Into::into)
-        },
-        None | Some(_) => {
-            #[allow(unused_variables)]
-            let expected = "css";
-
-            #[cfg(feature = "Sass")]
-            let expected = "css, sass, scss";
-
-            Err(StyleError::Extension { expected }.into())
-        },
-    }
-}
-
-#[cfg(feature = "Sass")]
-fn sass(style_path: impl AsRef<std::path::Path>) -> Result<String, Error> {
-    let style_path = style_path.as_ref();
-
-    let style_meta = match fs::metadata(style_path) {
-        Ok(m) => m,
-        Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Err(StyleError::NotFound(e).into()),
-        Err(e) => {
-            return Err(StyleError::Meta { e, path: style_path.to_owned() }.into())
-        }
-    };
-
-    let style_mtime = style_meta.modified().map_err(|e| StyleError::MTime { e, path: style_path.to_owned() })?;
-
-    let mut cache_path = xdg::cache_dir();
-    cache_path.push(crate::APP_BINARY);
-    cache_path.set_extension("css");
-
-    if let Ok(cache_meta) = fs::metadata(&cache_path) {
-        if Some(style_mtime) == cache_meta.modified().ok() {
-            return fs::read_to_string(&cache_path)
-                .map_err(|e| error::CacheError::Read { e, path: cache_path })
-                .map_err(Into::into);
-        }
-    }
-
-    let compiled = grass::from_path(style_path, &grass::Options::default())?;
-
-    if let Err(e) = cache(cache_path, &compiled, style_mtime) {
-        eprintln!("{e}");
-    }
-
-    Ok(compiled)
-}
-
-#[cfg(feature = "Sass")]
-fn cache(mut path: PathBuf, style: &str, time: std::time::SystemTime) -> Result<(), error::CacheError> {
-    use error::CacheError;
-    use std::mem::take;
-
-    let mut f = File::create(&path)
-        .map_err(|e| CacheError::Create { e, path: take(&mut path) })?;
-
-    f.write_all(style.as_bytes())
-        .map_err(|e| CacheError::Write { e, path: take(&mut path) })?;
-
-    f.set_modified(time)
-        .map_err(|e| CacheError::MTime { e, path: take(&mut path) })
 }
