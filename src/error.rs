@@ -30,9 +30,6 @@ impl Debug for Error {
 pub enum CLIError {
     #[error("'{0}' is not a valid anchor point")]
     Anchor(String),
-
-    #[error("'{0}' no such file")]
-    FileNotFound(PathBuf),
 }
 
 #[derive(Error, Debug)]
@@ -66,6 +63,7 @@ pub enum StyleError {
     #[error("Unable to write a style to a file ({path})\n{e}")]
     Write { e: io::Error, path: PathBuf },
 
+    #[cfg(feature = "Sass")]
     #[error(transparent)]
     NotFound(io::Error),
 
