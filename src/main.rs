@@ -124,7 +124,7 @@ fn warning(args: &Args) {
 
     #[cfg(not(feature = "Sass"))]
     if let Some(p) = &args.userstyle {
-        let extension = p.extension().and_then(OsStr::to_str);
+        let extension = p.extension().and_then(std::ffi::OsStr::to_str);
         if let Some("sass"|"scss") = extension {
             println!("{}: You have specified *.{} file as userstyle, but '{}' feature wasn't included at compile time!", colors::WARNING, extension.unwrap(), colors::SASS)
         }
