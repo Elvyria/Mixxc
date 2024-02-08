@@ -6,7 +6,6 @@ use super::{AudioServer, Message, Volume};
 pub struct Pipewire;
 
 impl AudioServer for Pipewire {
-    #[allow(unused_variables)]
     fn connect(&self, sender: Sender<Message>) {
         unimplemented!()
     }
@@ -15,12 +14,10 @@ impl AudioServer for Pipewire {
         unimplemented!()
     }
 
-    #[allow(unused_variables)]
     fn set_volume(&self, id: u32, volume: Volume) {
         unimplemented!()
     }
 
-    #[allow(unused_variables)]
     fn set_mute(&self, id: u32, flag: bool) {
         unimplemented!()
     }

@@ -11,6 +11,7 @@ edition = "2021"
 Wayland = ["dep:gtk4-layer-shell"]
 Sass = ["dep:grass"]
 X11 = ["dep:x11rb", "dep:gdk-x11"]
+PipeWire = []
 
 [dependencies]
 anyhow = "1.0"

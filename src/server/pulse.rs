@@ -113,6 +113,7 @@ impl AudioServer for Pulse {
     }
 
     fn set_volume(&self, id: u32, volume: Volume) {
+        #[allow(irrefutable_let_patterns)]
         let Volume::Pulse(cv) = volume else {
             return
         };

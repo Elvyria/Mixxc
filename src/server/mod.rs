@@ -1,18 +1,20 @@
+#[cfg(feature = "PipeWire")]
+pub mod pipewire;
+pub mod pulse;
+
 use anyhow::Error;
 use enum_dispatch::enum_dispatch;
 use relm4::Sender;
 
-use self::pulse::Pulse;
+#[cfg(feature = "PipeWire")]
 use self::pipewire::Pipewire;
-
-pub mod pulse;
-pub mod pipewire;
+use self::pulse::Pulse;
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum Volume {
     Pulse(libpulse_binding::volume::ChannelVolumes),
 
-    #[allow(dead_code)]
+    #[cfg(feature = "PipeWire")]
     Pipewire,
 }
 
@@ -22,6 +24,7 @@ impl Volume {
             Volume::Pulse(cv) => {
                 cv.set(cv.len(), libpulse_binding::volume::VolumeLinear(v).into())
             },
+            #[cfg(feature = "PipeWire")]
             Volume::Pipewire  => unimplemented!(),
         };
     }
@@ -29,6 +32,7 @@ impl Volume {
     pub fn get_linear(&self) -> f64 {
         match self {
             Volume::Pulse(cv) => libpulse_binding::volume::VolumeLinear::from(cv.max()).0,
+            #[cfg(feature = "PipeWire")]
             Volume::Pipewire  => unimplemented!(),
         }
     }
@@ -59,6 +63,7 @@ pub enum Message {
 #[enum_dispatch]
 pub enum AudioServerEnum {
     Pulse,
+    #[cfg(feature = "PipeWire")]
     Pipewire,
 }
 
