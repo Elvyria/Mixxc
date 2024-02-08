@@ -334,10 +334,14 @@ impl Component for App {
         let widgets = view_output!();
 
         #[cfg(feature = "Wayland")]
-        Self::init_wayland(window, config.anchors, &config.margins);
+        if crate::xdg::is_wayland() {
+            Self::init_wayland(window, config.anchors, &config.margins);
+        }
 
         #[cfg(feature = "X11")]
-        window.connect_realize(move |w| Self::realize_x11(w, config.anchors, config.margins.clone()));
+        if crate::xdg::is_x11() {
+            window.connect_realize(move |w| Self::realize_x11(w, config.anchors, config.margins.clone()));
+        }
 
         window.set_default_height(config.height as i32);
         window.set_default_width(config.width as i32);

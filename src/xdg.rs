@@ -19,3 +19,15 @@ pub fn config_dir() -> PathBuf {
 pub fn cache_dir() -> PathBuf {
     env_or_default("XDG_CACHE_HOME", ".cache")
 }
+
+pub fn is_wayland() -> bool {
+    env::var("WAYLAND_DISPLAY").is_ok()
+        || env::var("XDG_SESSION_TYPE") == Ok("wayland".to_owned())
+}
+
+pub fn is_x11() -> bool {
+    use env::var;
+
+    var("DISPLAY").is_ok() && var("WAYLAND_DISPLAY").is_err()
+        || var("XDG_SESSION_TYPE") == Ok("x11".to_owned())
+}

@@ -113,12 +113,12 @@ fn main() -> Result<(), Error> {
 #[allow(unused_variables)]
 fn warning(args: &Args) {
     #[cfg(not(feature = "Wayland"))]
-    if std::env::var("WAYLAND_DISPLAY").is_ok() {
+    if xdg::is_wayland() {
         println!("{}: You are trying to use Mixxc on Wayland, but '{}' feature wasn't included at compile time!", colors::WARNING, colors::WAYLAND)
     }
 
     #[cfg(not(feature = "X11"))]
-    if std::env::var("XDG_SESSION_TYPE") == Ok("x11".to_owned()) {
+    if xdg::is_x11() {
         println!("{}: You are trying to use Mixxc on X Window System, but '{}' feature wasn't included at compile time!", colors::WARNING, colors::X11);
     }
 
