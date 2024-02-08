@@ -2,7 +2,7 @@ mod xdg;
 mod server;
 mod app;
 mod anchor;
-mod colors;
+mod label;
 mod proto;
 mod error;
 mod style;
@@ -114,19 +114,19 @@ fn main() -> Result<(), Error> {
 fn warning(args: &Args) {
     #[cfg(not(feature = "Wayland"))]
     if xdg::is_wayland() {
-        println!("{}: You are trying to use Mixxc on Wayland, but '{}' feature wasn't included at compile time!", colors::WARNING, colors::WAYLAND)
+        println!("{}: You are trying to use Mixxc on Wayland, but '{}' feature wasn't included at compile time!", label::WARNING, label::WAYLAND)
     }
 
     #[cfg(not(feature = "X11"))]
     if xdg::is_x11() {
-        println!("{}: You are trying to use Mixxc on X Window System, but '{}' feature wasn't included at compile time!", colors::WARNING, colors::X11);
+        println!("{}: You are trying to use Mixxc on X Window System, but '{}' feature wasn't included at compile time!", label::WARNING, label::X11);
     }
 
     #[cfg(not(feature = "Sass"))]
     if let Some(p) = &args.userstyle {
         let extension = p.extension().and_then(std::ffi::OsStr::to_str);
         if let Some("sass"|"scss") = extension {
-            println!("{}: You have specified *.{} file as userstyle, but '{}' feature wasn't included at compile time!", colors::WARNING, extension.unwrap(), colors::SASS)
+            println!("{}: You have specified *.{} file as userstyle, but '{}' feature wasn't included at compile time!", label::WARNING, extension.unwrap(), label::SASS)
         }
     }
 }

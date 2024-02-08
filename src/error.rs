@@ -1,6 +1,6 @@
 use std::{path::PathBuf, io, fmt::Debug};
 
-use crate::colors;
+use crate::label;
 
 use thiserror::Error;
 
@@ -22,7 +22,7 @@ pub enum Error {
 
 impl Debug for Error {
     fn fmt(&self, f: &mut ::core::fmt::Formatter) -> ::core::fmt::Result {
-        write!(f, "\x1b[7D{}: {}", colors::ERROR, self)
+        write!(f, "\x1b[7D{}: {}", label::ERROR, self)
     }
 }
 

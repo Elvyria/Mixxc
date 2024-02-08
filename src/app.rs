@@ -12,7 +12,7 @@ use gtk::{Orientation, Align, Justification};
 use tokio_util::sync::CancellationToken;
 
 use crate::anchor::Anchor;
-use crate::colors;
+use crate::label;
 use crate::server::{AudioServerEnum, AudioServer, self, Volume, Client};
 
 pub struct App {
@@ -397,9 +397,9 @@ impl Component for App {
             Changed(client) => {
                 self.sliders.send(client.id, SliderMessage::ServerChange(client));
             }
-            Error(e) => eprintln!("{}: Audio Server :{e}", colors::ERROR),
+            Error(e) => eprintln!("{}: Audio Server :{e}", label::ERROR),
             Disconnected(Some(e)) => {
-                eprintln!("{}: Audio Server :{e}", colors::ERROR);
+                eprintln!("{}: Audio Server :{e}", label::ERROR);
 
                 sender.spawn_command({
                     let server = self.server.clone();
