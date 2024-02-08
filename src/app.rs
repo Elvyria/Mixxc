@@ -211,8 +211,12 @@ impl FactoryComponent for Slider {
        self.reset();
 
        match message {
-           SliderMessage::Mute => {
-               let _ = sender.output(Message::SetMute { id: self.id, flag: !self.muted });
+           SliderMessage::ServerPeak(peak) => {
+               let peak = (peak * 0.9) as f64;
+
+               if peak > self.peak + 0.035 {
+                   self.set_peak(peak + 0.015);
+               }
            },
            SliderMessage::ValueChange(v) => {
                self.set_peak(self.peak * v / self.volume.get_linear());
@@ -222,19 +226,15 @@ impl FactoryComponent for Slider {
 
                let _ = sender.output(Message::VolumeChanged { id: self.id, volume: self.volume });
            },
+           SliderMessage::Mute => {
+               let _ = sender.output(Message::SetMute { id: self.id, flag: !self.muted });
+           },
            SliderMessage::ServerChange(client) => {
                self.set_volume(client.volume);
                self.set_volume_percent((client.volume.get_linear() * 100.0) as u8);
                self.set_muted(client.muted);
                self.set_name(client.name);
                self.set_description(client.description);
-           },
-           SliderMessage::ServerPeak(peak) => {
-               let peak = (peak * 0.9) as f64;
-
-               if peak > self.peak + 0.035 {
-                   self.set_peak(peak + 0.015);
-               }
            },
        }
     }
@@ -328,6 +328,11 @@ impl Component for App {
         use server::Message::*;
 
         match message {
+            Peak(id, peak) => {
+                if let Some(index) = self.sliders.iter().position(|slider| slider.id == id) {
+                    self.sliders.send(index, SliderMessage::ServerPeak(peak))
+                }
+            }
             New(client) => {
                 let mut client = *client;
                 client.max_volume = f64::min(client.max_volume, self.max_volume);
@@ -339,11 +344,6 @@ impl Component for App {
                 #[cfg(feature = "X11")]
                 window.size_allocate(&window.allocation(), -1);
             }
-            Changed(client) => {
-                if let Some(index) = self.sliders.iter().position(|slider| slider.id == client.id) {
-                    self.sliders.send(index, SliderMessage::ServerChange(client))
-                }
-            }
             Removed(id) => {
                 let mut sliders = self.sliders.guard();
 
@@ -352,9 +352,9 @@ impl Component for App {
                     sliders.remove(pos);
                 }
             }
-            Peak(id, peak) => {
-                if let Some(index) = self.sliders.iter().position(|slider| slider.id == id) {
-                    self.sliders.send(index, SliderMessage::ServerPeak(peak))
+            Changed(client) => {
+                if let Some(index) = self.sliders.iter().position(|slider| slider.id == client.id) {
+                    self.sliders.send(index, SliderMessage::ServerChange(client))
                 }
             }
             Error(e) => eprintln!("{}: Audio Server :{e}", colors::ERROR),
@@ -379,12 +379,12 @@ impl Component for App {
         use Message::*;
 
         match message {
-            SetMute { id, flag } => {
-                self.server.set_mute(id, flag);
-            }
             VolumeChanged { id, volume } => {
                 self.server.set_volume(id, volume);
             },
+            SetMute { id, flag } => {
+                self.server.set_mute(id, flag);
+            }
             InterruptClose => {
                 if let Some(shutdown) = self.shutdown.take() {
                     shutdown.cancel();

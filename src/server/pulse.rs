@@ -144,7 +144,6 @@ fn add_sink_input(info: ListResult<&SinkInputInfo>, context: &Arc<Mutex<Option<C
 
 const FRAG_SIZE: u32 = 4;
 
-#[inline(never)]
 fn peak_callback(stream: &mut Stream, sender: &Sender<Message>, i: u32) {
     match stream.peek() {
         Ok(PeekResult::Data(b)) => {
@@ -221,6 +220,10 @@ fn subscribe_callback(sender: &Sender<Message>, context: &Arc<Mutex<Option<Conte
                 move |info: ListResult<&SinkInputInfo>| add_sink_input(info, &context, &sender, &peakers)
             });
         },
+        Operation::Removed => {
+            sender.emit(Message::Removed(i));
+            peakers.remove(i);
+        },
         Operation::Changed => {
             introspect.get_sink_input_info(i, {
                 let sender = sender.clone();
@@ -232,10 +235,6 @@ fn subscribe_callback(sender: &Sender<Message>, context: &Arc<Mutex<Option<Conte
                     };
                 }
             });
-        },
-        Operation::Removed => {
-            sender.emit(Message::Removed(i));
-            peakers.remove(i);
         },
     }
 }
