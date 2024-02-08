@@ -9,7 +9,7 @@ Currently, it supports only `pulseaudio` and `pipewire` (through the pulseaudio 
 
 ## Usage
 ```sh
-Usage: mixxc [-w <width>] [-h <height>] [-s <spacing>] [-a <anchor...>] [-m <margin...>] [-u <userstyle>] [-v]
+Usage: mixxc [-w <width>] [-h <height>] [-s <spacing>] [-a <anchor...>] [-m <margin...>] [-u <userstyle>] [-k] [-v] [--max-volume <max-volume>]
 
 Minimalistic volume mixer.
 
@@ -20,7 +20,9 @@ Options:
   -a, --anchor      screen anchor point: (t)op, (b)ottom, (l)eft, (r)ight
   -m, --margin      margin distance for each anchor point
   -u, --userstyle   path to the userstyle
+  -k, --keep        keep window open
   -v, --version     print version
+  --max-volume      max volume level in percent (default: 100; 1-255)
   --help            display usage information
 ```
 
@@ -60,13 +62,13 @@ GSK_RENDERER=cairo GTK_USE_PORTAL=0 mixxc
 ```
 ### Manual Closing
 By default, when the mouse cursor leaves window boundaries, it automatically closes.  
-This is a workaround for window managers that don't send `close` request to layer-shells under Wayland.  
+This is a workaround for WM's that don't send `close` request to layer-shells under Wayland.  
 If this behavior is not desirable, you can disable it:
 ```sh
 mixxc --keep
 ```
 ### Toggle Window
-If you want to toggle window with click of a button, Unix way is the way:
+If you want to toggle window with a click of a button, Unix way is the way:
 ```sh
 pkill mixxc | mixxc
 ```
