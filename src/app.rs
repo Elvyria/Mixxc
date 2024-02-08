@@ -19,9 +19,49 @@ pub struct App {
     server: Arc<AudioServerEnum>,
 
     max_volume: f64,
-    sliders: FactoryVecDeque<Slider>,
+    sliders: Sliders,
 
     shutdown: Option<CancellationToken>,
+}
+
+struct Sliders {
+    container: FactoryVecDeque<Slider>,
+    direction: GrowthDirection,
+}
+
+enum GrowthDirection {
+    TopLeft,
+    BottomRight,
+}
+
+impl Sliders {
+    fn push_client(&mut self, client: Client) {
+        let mut sliders = self.container.guard();
+
+        match self.direction {
+            GrowthDirection::TopLeft => sliders.push_front(client),
+            GrowthDirection::BottomRight => sliders.push_back(client),
+        };
+
+        sliders.drop();
+    }
+
+    fn remove(&mut self, id: u32) {
+        let mut sliders = self.container.guard();
+
+        let pos = sliders.iter().position(|e| e.id == id);
+        if let Some(pos) = pos {
+            sliders.remove(pos);
+        }
+
+        sliders.drop();
+    }
+
+    fn send(&self, id: u32, message: SliderMessage) {
+        if let Some(index) = self.container.iter().position(|slider| slider.id == id) {
+            self.container.send(index, message)
+        }
+    }
 }
 
 pub struct Config {
@@ -277,11 +317,18 @@ impl Component for App {
         let model = App {
             server,
             max_volume: config.max_volume,
-            sliders,
-            shutdown: None
+            sliders: Sliders {
+                container: sliders,
+                direction: if config.anchors.contains(Anchor::Bottom) {
+                    GrowthDirection::TopLeft
+                } else {
+                    GrowthDirection::BottomRight
+                },
+            },
+            shutdown: None,
         };
 
-        let slider_box = model.sliders.widget();
+        let slider_box = model.sliders.container.widget();
         slider_box.set_spacing(config.spacing.map(i32::from).unwrap_or(20));
 
         let widgets = view_output!();
@@ -329,33 +376,22 @@ impl Component for App {
 
         match message {
             Peak(id, peak) => {
-                if let Some(index) = self.sliders.iter().position(|slider| slider.id == id) {
-                    self.sliders.send(index, SliderMessage::ServerPeak(peak))
-                }
+                self.sliders.send(id, SliderMessage::ServerPeak(peak));
             }
             New(client) => {
                 let mut client = *client;
                 client.max_volume = f64::min(client.max_volume, self.max_volume);
 
-                let mut sliders = self.sliders.guard();
-                sliders.push_back(client);
-                sliders.drop();
+                self.sliders.push_client(client);
 
                 #[cfg(feature = "X11")]
                 window.size_allocate(&window.allocation(), -1);
             }
             Removed(id) => {
-                let mut sliders = self.sliders.guard();
-
-                let pos = sliders.iter().position(|e| e.id == id);
-                if let Some(pos) = pos {
-                    sliders.remove(pos);
-                }
+                self.sliders.remove(id)
             }
             Changed(client) => {
-                if let Some(index) = self.sliders.iter().position(|slider| slider.id == client.id) {
-                    self.sliders.send(index, SliderMessage::ServerChange(client))
-                }
+                self.sliders.send(client.id, SliderMessage::ServerChange(client));
             }
             Error(e) => eprintln!("{}: Audio Server :{e}", colors::ERROR),
             Disconnected(Some(e)) => {
