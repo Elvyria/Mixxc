@@ -48,6 +48,7 @@ struct Slider {
     description: String,
     #[no_eq]
     peak: f64,
+    old: bool,
 }
 
 #[derive(Debug)]
@@ -66,21 +67,31 @@ pub enum SliderMessage {
     ServerPeak(f32),
 }
 
+#[derive(Debug)]
+pub enum SliderCommand {
+    Peak,
+    MarkOld,
+}
+
 #[relm4::factory()]
 impl FactoryComponent for Slider {
     type Init = server::Client;
     type Input = SliderMessage;
     type Output = Message;
     type ParentWidget = gtk::Box;
-    type CommandOutput = ();
+    type CommandOutput = SliderCommand;
 
     view! {
         root = gtk::Box {
             add_css_class: "client",
-            set_orientation: Orientation::Vertical,
+
+            #[track = "self.changed(Slider::old())"]
+            set_class_active: ("new", !self.old),
 
             #[track = "self.changed(Slider::muted())"]
             set_class_active: ("muted", self.muted),
+
+            set_orientation: Orientation::Vertical,
 
             gtk::Label {
                 #[track = "self.changed(Slider::name())"]
@@ -161,10 +172,15 @@ impl FactoryComponent for Slider {
 
                     loop {
                         interval.tick().await;
-                        sender.emit(());
+                        sender.emit(SliderCommand::Peak);
                     }
                 })
                 .drop_on_shutdown()
+        });
+
+        sender.oneshot_command(async move {
+            tokio::time::sleep(Duration::from_secs(1)).await;
+            SliderCommand::MarkOld
         });
 
         Self {
@@ -176,14 +192,18 @@ impl FactoryComponent for Slider {
             muted: init.muted,
             max: init.max_volume,
             peak: 0.0,
+            old: false,
 
             tracker: 0,
         }
     }
 
-    fn update_cmd(&mut self, _: Self::CommandOutput, _: FactorySender<Self>) {
-        if self.peak > 0.0 {
-            self.set_peak((self.peak - 0.01).max(0.0));
+    fn update_cmd(&mut self, cmd: Self::CommandOutput, _: FactorySender<Self>) {
+        match cmd {
+            SliderCommand::Peak => if self.peak > 0.0 {
+                self.set_peak((self.peak - 0.01).max(0.0));
+            },
+            SliderCommand::MarkOld => self.set_old(true),
         }
     }
 

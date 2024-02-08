@@ -20,7 +20,9 @@ window {
 	color: white;
 	font-family: 'Noto Sans';
 	font-size: 1.1em;
+}
 
+.client.new {
 	animation: client-add 300ms ease;
 }
 
