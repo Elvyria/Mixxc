@@ -1,4 +1,4 @@
-use std::{env, path::PathBuf};
+use std::{env, path::PathBuf, sync::OnceLock};
 
 fn env_or_default(env: &str, fallback: &str) -> PathBuf {
     env::var_os(env)
@@ -20,14 +20,38 @@ pub fn cache_dir() -> PathBuf {
     env_or_default("XDG_CACHE_HOME", ".cache")
 }
 
+enum Platform {
+    Wayland,
+    X11,
+    Unknown,
+}
+
+fn platform() -> &'static Platform {
+    static PLATFORM: OnceLock<Platform> = OnceLock::new();
+
+    PLATFORM.get_or_init(|| {
+        match env::var("XDG_SESSION_TYPE").as_deref() {
+            Ok("wayland") => return Platform::Wayland,
+            Ok("x11")     => return Platform::X11,
+            _             => {},
+        }
+
+        if env::var("WAYLAND_DISPLAY").is_ok() {
+            return Platform::Wayland
+        }
+
+        if env::var("DISPLAY").is_ok() {
+            return Platform::X11
+        }
+
+        Platform::Unknown
+    })
+}
+
 pub fn is_wayland() -> bool {
-    env::var("WAYLAND_DISPLAY").is_ok()
-        || env::var("XDG_SESSION_TYPE") == Ok("wayland".to_owned())
+    matches!(platform(), Platform::Wayland)
 }
 
 pub fn is_x11() -> bool {
-    use env::var;
-
-    var("DISPLAY").is_ok() && var("WAYLAND_DISPLAY").is_err()
-        || var("XDG_SESSION_TYPE") == Ok("x11".to_owned())
+    matches!(platform(), Platform::X11)
 }

@@ -389,7 +389,9 @@ impl Component for App {
                 self.sliders.push_client(client);
 
                 #[cfg(feature = "X11")]
-                window.size_allocate(&window.allocation(), -1);
+                if crate::xdg::is_x11() {
+                    window.size_allocate(&window.allocation(), -1);
+                }
             }
             Removed(id) => {
                 self.sliders.remove(id)
