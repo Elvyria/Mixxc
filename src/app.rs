@@ -186,7 +186,7 @@ impl FactoryComponent for Slider {
         }
     }
 
-    fn init_widgets(&mut self, _: &Self::Index, root: &Self::Root, _: &<Self::ParentWidget as relm4::factory::FactoryView>::ReturnedWidget, sender: FactorySender<Self>) -> Self::Widgets {
+    fn init_widgets(&mut self, _: &Self::Index, root: Self::Root, _: &<Self::ParentWidget as relm4::factory::FactoryView>::ReturnedWidget, sender: FactorySender<Self>) -> Self::Widgets {
         // 0.00004 is a rounding error
         let scale = gtk::Scale::with_range(Orientation::Horizontal, 0.0, self.max + 0.00004, 0.005);
 
@@ -301,7 +301,7 @@ impl Component for App {
         }
     }
 
-    fn init(config: Self::Init, window: &Self::Root, sender: ComponentSender<Self>) -> ComponentParts<Self> {
+    fn init(config: Self::Init, window: Self::Root, sender: ComponentSender<Self>) -> ComponentParts<Self> {
         let server = Arc::new(config.server);
 
         sender.spawn_command({
@@ -335,7 +335,7 @@ impl Component for App {
 
         #[cfg(feature = "Wayland")]
         if crate::xdg::is_wayland() {
-            Self::init_wayland(window, config.anchors, &config.margins);
+            Self::init_wayland(&window, config.anchors, &config.margins);
         }
 
         #[cfg(feature = "X11")]

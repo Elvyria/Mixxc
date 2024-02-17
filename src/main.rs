@@ -93,7 +93,7 @@ fn main() -> Result<(), Error> {
 
     let app = RelmApp::new(crate::APP_ID).with_args(vec![]);
 
-    relm4::set_global_css(&style);
+    app.set_global_css(&style);
 
     app.run::<app::App>(Config {
         width:   args.width.unwrap_or(0),
