@@ -1,6 +1,8 @@
 use std::sync::Arc;
 use std::time::Duration;
 
+use relm4::gtk::glib::ControlFlow;
+use relm4::gtk::prelude::WidgetExtManual;
 use relm4::{gtk, ComponentParts, ComponentSender, Component, RelmWidgetExt, FactorySender};
 use relm4::factory::FactoryVecDeque;
 use relm4::prelude::{DynamicIndex, FactoryComponent};
@@ -193,6 +195,16 @@ impl FactoryComponent for Slider {
         let widgets = view_output!();
 
         {
+            let sender = sender.command_sender().clone();
+
+            widgets.scale.add_tick_callback(move |_, _| {
+                sender.emit(SliderCommand::Peak);
+
+                ControlFlow::Continue
+            });
+        }
+
+        {
             let scale = &widgets.scale;
 
             let trough = scale.first_child().expect("getting GtkRange from GtkScale");
@@ -205,19 +217,6 @@ impl FactoryComponent for Slider {
     }
 
     fn init_model(init: Self::Init, _: &DynamicIndex, sender: FactorySender<Self>) -> Self {
-        sender.command(|sender, shutdown| {
-            shutdown
-                .register(async move {
-                    let mut interval = tokio::time::interval(Duration::from_millis(10));
-
-                    loop {
-                        interval.tick().await;
-                        sender.emit(SliderCommand::Peak);
-                    }
-                })
-                .drop_on_shutdown()
-        });
-
         sender.oneshot_command(async move {
             tokio::time::sleep(Duration::from_secs(1)).await;
             SliderCommand::MarkOld
