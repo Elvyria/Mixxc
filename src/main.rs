@@ -7,22 +7,16 @@ mod proto;
 mod error;
 mod style;
 
-use std::path::PathBuf;
-use std::fs;
-
-use relm4::RelmApp;
-use argh::FromArgs;
+use std::{fs, path::PathBuf};
 
 use error::{Error, ConfigError};
 use anchor::Anchor;
-use server::pulse::Pulse;
-use app::Config;
 
 static APP_NAME:   &str = "Mixxc";
 static APP_ID:     &str = "elvy.mixxc";
 static APP_BINARY: &str = "mixxc";
 
-#[derive(FromArgs)]
+#[derive(argh::FromArgs)]
 ///Minimalistic volume mixer.
 struct Args {
     /// window height
@@ -91,11 +85,11 @@ fn main() -> Result<(), Error> {
         }
     };
 
-    let app = RelmApp::new(crate::APP_ID).with_args(vec![]);
+    let app = relm4::RelmApp::new(crate::APP_ID).with_args(vec![]);
 
     app.set_global_css(&style);
 
-    app.run::<app::App>(Config {
+    app.run::<app::App>(app::Config {
         width:   args.width.unwrap_or(0),
         height:  args.height.unwrap_or(0),
         spacing: args.spacing,
@@ -104,7 +98,7 @@ fn main() -> Result<(), Error> {
         max_volume: args.max_volume.unwrap_or(100).max(1) as f64 / 100.0,
         anchors,
 
-        server: Pulse::new().into(),
+        server: server::pulse::Pulse::new().into(),
     });
 
     Ok(())

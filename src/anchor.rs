@@ -1,8 +1,6 @@
-use bitflags::bitflags;
-
 use crate::error::CLIError;
 
-bitflags! {
+bitflags::bitflags! {
     #[derive(Clone, Copy, PartialEq, Eq)]
     pub struct Anchor: u8 {
         const None    = 0b0000;

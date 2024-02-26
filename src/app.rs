@@ -3,13 +3,12 @@ use std::rc::Rc;
 use std::sync::Arc;
 use std::time::Duration;
 
-use relm4::gtk::glib::ControlFlow;
-use relm4::gtk::prelude::WidgetExtManual;
 use relm4::{gtk, ComponentParts, ComponentSender, Component, RelmWidgetExt, FactorySender};
 use relm4::factory::FactoryVecDeque;
 use relm4::prelude::{DynamicIndex, FactoryComponent};
 
-use gtk::prelude::{ApplicationExt, GtkWindowExt, BoxExt, GestureSingleExt, OrientableExt, RangeExt, WidgetExt};
+use gtk::glib::ControlFlow;
+use gtk::prelude::{ApplicationExt, GtkWindowExt, BoxExt, GestureSingleExt, OrientableExt, RangeExt, WidgetExt, WidgetExtManual};
 use gtk::pango::EllipsizeMode;
 use gtk::{Orientation, Align, Justification};
 
