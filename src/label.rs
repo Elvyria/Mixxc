@@ -13,3 +13,6 @@ pub static X11: &str = cstr!("<g>X11</>");
 
 #[cfg(not(feature = "Sass"))]
 pub static SASS: &str = cstr!("<g>Sass</>");
+
+#[cfg(feature = "Wayland")]
+pub static LAYER_SHELL_PROTOCOL: &str = cstr!("<g>zwlr_layer_shell_v1</>");
