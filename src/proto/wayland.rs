@@ -1,6 +1,6 @@
 use relm4::Component;
 
-use gtk4_layer_shell::{Edge, Layer, LayerShell};
+use gtk4_layer_shell::{Edge, KeyboardMode, Layer, LayerShell};
 
 use crate::{app::App, anchor::Anchor};
 
@@ -9,6 +9,7 @@ impl App where Self: Component {
         window.init_layer_shell();
         window.set_layer(Layer::Top);
         window.set_namespace("volume-mixer");
+        window.set_keyboard_mode(KeyboardMode::OnDemand);
 
         for (i, anchor) in anchors.iter().enumerate() {
             let edge = anchor.try_into().unwrap();

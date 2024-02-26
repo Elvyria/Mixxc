@@ -61,7 +61,7 @@ If startup seems a bit slow, try this:
 GSK_RENDERER=cairo GTK_USE_PORTAL=0 mixxc
 ```
 ### Manual Closing
-By default, when the mouse cursor leaves window boundaries, it automatically closes.  
+By default window will be closed after it looses focus.  
 This is a workaround for WM's that don't send `close` request to layer-shells under Wayland.  
 If this behavior is not desirable, you can disable it:
 ```sh

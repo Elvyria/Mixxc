@@ -1,3 +1,5 @@
+use std::cell::Cell;
+use std::rc::Rc;
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -346,24 +348,23 @@ impl Component for App {
         window.set_default_width(config.width as i32);
 
         if !config.keep {
+            let has_pointer = Rc::new(Cell::new(false));
+
             let controller = gtk::EventControllerMotion::new();
-            controller.connect_leave({
-                let sender = sender.clone();
-                move |motion| {
-                    if motion.is_pointer() {
-                        sender.input(Message::Close);
-                    }
-                }
-            });
-            controller.connect_enter({
-                let sender = sender.clone();
-                move |motion, _, _| {
-                    if motion.is_pointer() {
-                        sender.input(Message::InterruptClose);
-                    }
-                }
+            controller.connect_motion({
+                let has_pointer = has_pointer.clone();
+                move |_, _, _| has_pointer.set(true)
             });
             window.add_controller(controller);
+
+            window.connect_is_active_notify(move |window| {
+                if window.is_active() {
+                    sender.input(Message::InterruptClose);
+                }
+                else if has_pointer.replace(false) {
+                    sender.input(Message::Close);
+                }
+            });
         }
 
         // Wait a tiny bit for server thread to get ready.
