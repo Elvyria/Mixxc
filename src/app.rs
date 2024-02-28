@@ -3,12 +3,12 @@ use std::rc::Rc;
 use std::sync::Arc;
 use std::time::Duration;
 
-use relm4::{gtk, ComponentParts, ComponentSender, Component, RelmWidgetExt, FactorySender};
+use relm4::gtk;
+use relm4::{ComponentParts, ComponentSender, Component, RelmWidgetExt, FactorySender};
 use relm4::factory::FactoryVecDeque;
 use relm4::prelude::{DynamicIndex, FactoryComponent};
 
-use gtk::glib::ControlFlow;
-use gtk::prelude::{ApplicationExt, GtkWindowExt, BoxExt, GestureSingleExt, OrientableExt, RangeExt, WidgetExt, WidgetExtManual};
+use gtk::prelude::{ApplicationExt, GtkWindowExt, BoxExt, GestureSingleExt, OrientableExt, RangeExt, WidgetExt};
 use gtk::pango::EllipsizeMode;
 use gtk::{Orientation, Align, Justification};
 
@@ -195,29 +195,29 @@ impl FactoryComponent for Slider {
 
         let widgets = view_output!();
 
-        {
-            let sender = sender.command_sender().clone();
-
-            widgets.scale.add_tick_callback(move |_, _| {
-                sender.emit(SliderCommand::Peak);
-
-                ControlFlow::Continue
-            });
-        }
-
-        {
-            let scale = &widgets.scale;
-
+        scale.connect_fill_level_notify({
             let trough = scale.first_child().expect("getting GtkRange from GtkScale");
             let fill = trough.first_child().expect("getting fill from GtkRange");
 
-            scale.connect_fill_level_notify(move |_| fill.queue_resize());
-        }
+            move |_| fill.queue_resize()
+        });
 
         widgets
     }
 
     fn init_model(init: Self::Init, _: &DynamicIndex, sender: FactorySender<Self>) -> Self {
+        sender.command(|sender, shutdown| {
+            shutdown.register(async move {
+                let mut interval = tokio::time::interval(Duration::from_millis(10));
+
+                loop {
+                    interval.tick().await;
+                    sender.emit(SliderCommand::Peak);
+                }
+            })
+            .drop_on_shutdown()
+        });
+
         sender.oneshot_command(async move {
             tokio::time::sleep(Duration::from_secs(1)).await;
             SliderCommand::MarkOld
