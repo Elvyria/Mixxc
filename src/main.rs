@@ -90,8 +90,8 @@ fn main() -> Result<(), Error> {
     app.set_global_css(&style);
 
     app.run::<app::App>(app::Config {
-        width:   args.width.unwrap_or(0),
-        height:  args.height.unwrap_or(0),
+        width:   args.width.unwrap_or(350),
+        height:  args.height.unwrap_or(30),
         spacing: args.spacing,
         margins: args.margins,
         keep:    args.keep,
