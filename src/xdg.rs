@@ -30,7 +30,7 @@ fn platform() -> &'static Platform {
     static PLATFORM: OnceLock<Platform> = OnceLock::new();
 
     PLATFORM.get_or_init(|| {
-        match env::var("XDG_SESSION_TYPE").as_deref() {
+        match env::var("XDG_SESSION_TYPE").map(|s| s.to_lowercase()).as_deref() {
             Ok("wayland") => return Platform::Wayland,
             Ok("x11")     => return Platform::X11,
             _             => {},
