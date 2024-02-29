@@ -92,12 +92,14 @@ struct Slider {
     #[no_eq]
     peak: f64,
     old: bool,
+    removed: bool,
 }
 
 #[derive(Debug)]
 pub enum Message {
     SetMute { id: u32, flag: bool },
     VolumeChanged { id: u32, volume: Volume, },
+    Remove { id: u32 },
     InterruptClose,
     Close
 }
@@ -106,6 +108,7 @@ pub enum Message {
 pub enum SliderMessage {
     Mute,
     ValueChange(f64),
+    Removed,
     ServerChange(Box<Client>),
     ServerPeak(f32),
 }
@@ -130,6 +133,9 @@ impl FactoryComponent for Slider {
 
             #[track = "self.changed(Slider::old())"]
             set_class_active: ("new", !self.old),
+
+            #[track = "self.changed(Slider::removed())"]
+            set_class_active: ("removed", self.removed),
 
             #[track = "self.changed(Slider::muted())"]
             set_class_active: ("muted", self.muted),
@@ -233,6 +239,7 @@ impl FactoryComponent for Slider {
             max: init.max_volume,
             peak: 0.0,
             old: false,
+            removed: false,
 
             tracker: 0,
         }
@@ -269,6 +276,9 @@ impl FactoryComponent for Slider {
            SliderMessage::Mute => {
                let _ = sender.output(Message::SetMute { id: self.id, flag: !self.muted });
            },
+           SliderMessage::Removed => {
+               self.set_removed(true);
+           }
            SliderMessage::ServerChange(client) => {
                self.set_volume(client.volume);
                self.set_volume_percent((client.volume.get_linear() * 100.0) as u8);
@@ -393,7 +403,19 @@ impl Component for App {
                 }
             }
             Removed(id) => {
-                self.sliders.remove(id)
+                self.sliders.send(id, SliderMessage::Removed);
+
+                sender.command({
+                    let sender = sender.input_sender().clone();
+
+                    move |_, shutdown| {
+                        shutdown.register(async move {
+                            tokio::time::sleep(Duration::from_millis(300)).await;
+                            sender.emit(Message::Remove { id })
+                        })
+                        .drop_on_shutdown()
+                    }
+                });
             }
             Changed(client) => {
                 self.sliders.send(client.id, SliderMessage::ServerChange(client));
@@ -423,6 +445,9 @@ impl Component for App {
             VolumeChanged { id, volume } => {
                 self.server.set_volume(id, volume);
             },
+            Remove { id } => {
+                self.sliders.remove(id);
+            }
             SetMute { id, flag } => {
                 self.server.set_mute(id, flag);
             }

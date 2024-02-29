@@ -26,6 +26,10 @@ window {
 	animation: client-add 300ms ease;
 }
 
+.client.removed {
+	animation: client-remove 300ms ease;
+}
+
 /* Hide Application Name
 .client > .name {
 	font-size: 0;
@@ -117,5 +121,15 @@ scale > trough > fill {
 	}
 	to {
 		opacity: 1;
+	}
+}
+
+@keyframes client-remove {
+	from {
+		opacity: 1;
+	}
+	to {
+		transform: translateX(-200px);
+		opacity: 0;
 	}
 }
