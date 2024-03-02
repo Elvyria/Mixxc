@@ -76,7 +76,7 @@ pkill mixxc | mixxc
 ## Dependencies
 * [GTK4](https://www.gtk.org/)
 * [gtk4-layer-shell](https://github.com/wmww/gtk4-layer-shell) (Feature: Wayland)
-* [libpulseaudio](https://www.freedesktop.org/wiki/Software/PulseAudio) (Feature: PulseAudio)
+* [libpulseaudio](https://www.freedesktop.org/wiki/Software/PulseAudio)
 * [libxcb](https://xcb.freedesktop.org/) (Feature: X11)
 
 ## Features
