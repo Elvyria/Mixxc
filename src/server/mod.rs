@@ -43,7 +43,7 @@ pub struct Client {
     pub id: u32,
     pub name: String,
     pub description: String,
-    pub icon: String,
+    pub icon: Option<String>,
     pub volume: Volume,
     pub max_volume: f64,
     pub muted: bool,

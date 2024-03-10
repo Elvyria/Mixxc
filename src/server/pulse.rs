@@ -265,9 +265,14 @@ fn state_callback(context: &Arc<Mutex<Option<Context>>>, peakers: &Peakers, send
                 let peakers = peakers.clone();
                 let context = context.clone();
 
+                let mut ready = false;
+
                 move |info: ListResult<&SinkInputInfo>| {
                     add_sink_input(info, &context, &sender, &peakers);
-                    sender.emit(Message::Ready);
+
+                    if !ready {
+                        ready = sender.send(Message::Ready).is_ok();
+                    }
                 }
             };
 
@@ -289,6 +294,7 @@ impl <'a> From<&SinkInputInfo<'a>> for Client {
     fn from(sink_input: &SinkInputInfo<'a>) -> Self {
         let name = sink_input.proplist.get_str("application.name").unwrap_or_default();
         let description = sink_input.name.as_ref().map(Cow::to_string).unwrap_or_default();
+        let icon = sink_input.proplist.get_str("application.icon_name");
 
         // This would be the correct approach, but things get weird after 255%
         // static VOLUME_MAX: OnceLock<f64> = OnceLock::new();
@@ -298,7 +304,7 @@ impl <'a> From<&SinkInputInfo<'a>> for Client {
             id: sink_input.index,
             name,
             description,
-            icon: "".to_owned(),
+            icon,
             volume: Volume::Pulse(sink_input.volume),
             max_volume: 2.55,
             muted: sink_input.mute,

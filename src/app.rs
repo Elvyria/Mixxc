@@ -89,6 +89,7 @@ struct Slider {
     max: f64,
     name: String,
     description: String,
+    icon: String,
     #[no_eq]
     peak: f64,
     old: bool,
@@ -140,54 +141,64 @@ impl FactoryComponent for Slider {
             #[track = "self.changed(Slider::muted())"]
             set_class_active: ("muted", self.muted),
 
-            set_orientation: Orientation::Vertical,
+            append: image = &gtk::Image {
+                add_css_class: "icon",
+                set_use_fallback: true,
 
-            gtk::Label {
-                #[track = "self.changed(Slider::name())"]
-                set_label: &self.name,
-                add_css_class: "name",
-                set_halign: Align::Start,
-                set_ellipsize: EllipsizeMode::End,
-            },
-
-            gtk::Label {
-                #[track = "self.changed(Slider::description())"]
-                set_label: &self.description,
-                add_css_class: "description",
-                set_halign: Align::Start,
-                set_ellipsize: EllipsizeMode::End,
+                #[track = "self.changed(Slider::icon())"]
+                set_from_icon_name: Some(&self.icon),
             },
 
             gtk::Box {
-                set_orientation: Orientation::Horizontal,
+                set_orientation: Orientation::Vertical,
 
-                #[local_ref]
-                scale -> gtk::Scale {
-                    #[track = "self.changed(Slider::volume())"]
-                    set_value: self.volume.get_linear(),
-                    set_hexpand: true,
-                    set_slider_size_fixed: false,
-                    set_show_fill_level: true,
-                    set_restrict_to_fill_level: false,
-                    #[track = "self.changed(Slider::peak())"]
-                    set_fill_level: self.peak,
-                    set_width_request: 1,
-                    connect_value_changed[sender] => move |scale| {
-                        sender.input(SliderMessage::ValueChange(scale.value()));
-                    },
+                gtk::Label {
+                    #[track = "self.changed(Slider::name())"]
+                    set_label: &self.name,
+                    add_css_class: "name",
+                    set_halign: Align::Start,
+                    set_ellipsize: EllipsizeMode::End,
                 },
 
                 gtk::Label {
-                    #[track = "self.changed(Slider::volume_percent())"]
-                    set_label: &{ let mut s = self.volume_percent.to_string(); s.push('%'); s },
-                    add_css_class: "volume",
-                    set_width_chars: 5,
-                    set_max_width_chars: 5,
-                    set_justify: Justification::Center,
-                    add_controller = gtk::GestureClick {
-                        set_button: gtk::gdk::BUTTON_PRIMARY,
-                        connect_released[sender] => move |_, _, _, _| {
-                            sender.input(SliderMessage::Mute);
+                    #[track = "self.changed(Slider::description())"]
+                    set_label: &self.description,
+                    add_css_class: "description",
+                    set_halign: Align::Start,
+                    set_ellipsize: EllipsizeMode::End,
+                },
+
+                gtk::Box {
+                    set_orientation: Orientation::Horizontal,
+
+                    #[local_ref]
+                    scale -> gtk::Scale {
+                        #[track = "self.changed(Slider::volume())"]
+                        set_value: self.volume.get_linear(),
+                        set_hexpand: true,
+                        set_slider_size_fixed: false,
+                        set_show_fill_level: true,
+                        set_restrict_to_fill_level: false,
+                        #[track = "self.changed(Slider::peak())"]
+                        set_fill_level: self.peak,
+                        set_width_request: 1,
+                        connect_value_changed[sender] => move |scale| {
+                            sender.input(SliderMessage::ValueChange(scale.value()));
+                        },
+                    },
+
+                    gtk::Label {
+                        #[track = "self.changed(Slider::volume_percent())"]
+                        set_label: &{ let mut s = self.volume_percent.to_string(); s.push('%'); s },
+                        add_css_class: "volume",
+                        set_width_chars: 5,
+                        set_max_width_chars: 5,
+                        set_justify: Justification::Center,
+                        add_controller = gtk::GestureClick {
+                            set_button: gtk::gdk::BUTTON_PRIMARY,
+                            connect_released[sender] => move |_, _, _, _| {
+                                sender.input(SliderMessage::Mute);
+                            }
                         }
                     }
                 }
@@ -229,12 +240,32 @@ impl FactoryComponent for Slider {
             SliderCommand::MarkOld
         });
 
+        let volume_percent = (init.volume.get_linear() * 100.0) as u8;
+
+        let icon = match init.icon {
+            Some(name) => {
+                println!("{name}");
+                name
+            },
+            None => {
+                let v = volume_percent;
+
+                match v {
+                    v if v <= 75    => "audio-volume-medium".to_owned(),
+                    v if v <= 25    => "audio-volume-low".to_owned(),
+                    _ if init.muted => "audio-volume-muted".to_owned(),
+                    _               => "audio-volume-high".to_owned(),
+                }
+            },
+        };
+
         Self {
             id: init.id,
             name: init.name,
             description: init.description,
+            icon,
             volume: init.volume,
-            volume_percent: (init.volume.get_linear() * 100.0) as u8,
+            volume_percent,
             muted: init.muted,
             max: init.max_volume,
             peak: 0.0,
