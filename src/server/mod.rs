@@ -55,6 +55,7 @@ pub enum Message {
     Changed(Box<Client>),
     Removed(u32),
     Peak(u32, f32),
+    Ready,
     Error(Error),
     Disconnected(Option<Error>),
     Quit,

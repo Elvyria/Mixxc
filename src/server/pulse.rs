@@ -265,7 +265,10 @@ fn state_callback(context: &Arc<Mutex<Option<Context>>>, peakers: &Peakers, send
                 let peakers = peakers.clone();
                 let context = context.clone();
 
-                move |info: ListResult<&SinkInputInfo>| add_sink_input(info, &context, &sender, &peakers)
+                move |info: ListResult<&SinkInputInfo>| {
+                    add_sink_input(info, &context, &sender, &peakers);
+                    sender.emit(Message::Ready);
+                }
             };
 
             let mut lock = context.lock().unwrap();

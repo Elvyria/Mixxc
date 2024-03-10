@@ -366,6 +366,8 @@ impl Component for App {
             });
             window.add_controller(controller);
 
+            let sender = sender.clone();
+
             window.connect_is_active_notify(move |window| {
                 if window.is_active() {
                     sender.input(Message::InterruptClose);
@@ -376,9 +378,14 @@ impl Component for App {
             });
         }
 
-        // Wait a tiny bit for server thread to get ready.
-        // This helps to skip initial empty window without introducing sync boilerplate.
-        std::thread::yield_now();
+        window.connect_realize(|window| window.set_visible(false));
+
+        // Wait for server to send server::Ready message or wait and send it ourselves.
+        // This is not sound, but 'Timeout' message would not be useful enough.
+        sender.oneshot_command(async move {
+            tokio::time::sleep(Duration::from_millis(10)).await;
+            server::Message::Ready
+        });
 
         ComponentParts { model, widgets }
     }
@@ -419,6 +426,9 @@ impl Component for App {
             }
             Changed(client) => {
                 self.sliders.send(client.id, SliderMessage::ServerChange(client));
+            }
+            Ready => if !window.is_visible() {
+                window.set_visible(true);
             }
             Error(e) => eprintln!("{}: Audio Server :{e}", label::ERROR),
             Disconnected(Some(e)) => {
