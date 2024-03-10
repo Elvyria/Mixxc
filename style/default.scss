@@ -4,6 +4,10 @@ $bg:     #161616;
 $fg:     #B9B9B9;
 $accent: #684EFF;
 
+* {
+	all: unset;
+}
+
 window {
 	border: 1px $accent solid;
 	border-radius: 10px;
