@@ -21,6 +21,7 @@ Options:
   -m, --margin      margin distance for each anchor point
   -u, --userstyle   path to the userstyle
   -k, --keep        keep window open
+  -i, --icon        enable client icons
   -v, --version     print version
   --max-volume      max volume level in percent (default: 100; 1-255)
   --help            display usage information

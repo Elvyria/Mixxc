@@ -6,6 +6,7 @@ mod label;
 mod proto;
 mod error;
 mod style;
+mod widgets;
 
 use std::{fs, path::PathBuf};
 
@@ -46,6 +47,10 @@ struct Args {
     /// keep window open
     #[argh(switch, short = 'k', long = "keep")]
     keep: bool,
+
+    /// enable client icons
+    #[argh(switch, short = 'i', long = "icon")]
+    icon: bool,
 
     /// print version
     #[argh(switch, short = 'v')]
@@ -96,6 +101,7 @@ fn main() -> Result<(), Error> {
         margins: args.margins,
         keep:    args.keep,
         max_volume: args.max_volume.unwrap_or(100).max(1) as f64 / 100.0,
+        show_icons: args.icon,
         anchors,
 
         server: server::pulse::Pulse::new().into(),

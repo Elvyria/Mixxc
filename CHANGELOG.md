@@ -6,6 +6,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added
+- Audio client icons can now be desplayed with `-i` `--icon` flag.
+
 ### Fixed
 - (CSS) GTK system theme was unintentionally affecting style.
 - Window quickly resizing because sink buffer was not populated fast enough.

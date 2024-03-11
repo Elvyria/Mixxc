@@ -34,6 +34,15 @@ window {
 	animation: client-remove 300ms ease;
 }
 
+client.icon {
+	color: @fg;
+
+	padding-right: 13px;
+
+	-gtk-icon-size: 16px;
+	-gtk-icon-style: symbolic;
+}
+
 /* Hide Application Name
 .client > .name {
 	font-size: 0;

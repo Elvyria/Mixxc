@@ -1,3 +1,4 @@
+use std::borrow::Cow;
 use std::cell::Cell;
 use std::rc::Rc;
 use std::sync::Arc;
@@ -8,6 +9,7 @@ use relm4::{ComponentParts, ComponentSender, Component, RelmWidgetExt, FactorySe
 use relm4::factory::FactoryVecDeque;
 use relm4::prelude::{DynamicIndex, FactoryComponent};
 
+use gtk::glib::ObjectExt;
 use gtk::prelude::{ApplicationExt, GtkWindowExt, BoxExt, GestureSingleExt, OrientableExt, RangeExt, WidgetExt};
 use gtk::pango::EllipsizeMode;
 use gtk::{Orientation, Align, Justification};
@@ -15,7 +17,7 @@ use gtk::{Orientation, Align, Justification};
 use tokio_util::sync::CancellationToken;
 
 use crate::anchor::Anchor;
-use crate::label;
+use crate::{label, widgets};
 use crate::server::{AudioServerEnum, AudioServer, self, Volume, Client};
 
 pub struct App {
@@ -75,6 +77,7 @@ pub struct Config {
     pub margins: Vec<i32>,
     pub keep: bool,
     pub max_volume: f64,
+    pub show_icons: bool,
 
     pub server: AudioServerEnum,
 }
@@ -89,7 +92,8 @@ struct Slider {
     max: f64,
     name: String,
     description: String,
-    icon: String,
+    #[do_not_track]
+    icon: Cow<'static, str>,
     #[no_eq]
     peak: f64,
     old: bool,
@@ -125,7 +129,7 @@ impl FactoryComponent for Slider {
     type Init = server::Client;
     type Input = SliderMessage;
     type Output = Message;
-    type ParentWidget = gtk::Box;
+    type ParentWidget = widgets::SliderBox;
     type CommandOutput = SliderCommand;
 
     view! {
@@ -140,14 +144,6 @@ impl FactoryComponent for Slider {
 
             #[track = "self.changed(Slider::muted())"]
             set_class_active: ("muted", self.muted),
-
-            append: image = &gtk::Image {
-                add_css_class: "icon",
-                set_use_fallback: true,
-
-                #[track = "self.changed(Slider::icon())"]
-                set_from_icon_name: Some(&self.icon),
-            },
 
             gtk::Box {
                 set_orientation: Orientation::Vertical,
@@ -210,6 +206,18 @@ impl FactoryComponent for Slider {
         // 0.00004 is a rounding error
         let scale = gtk::Scale::with_range(Orientation::Horizontal, 0.0, self.max + 0.00004, 0.005);
 
+        let parent = root.parent().expect("getting container Widget from Slider");
+
+        // TODO: Replace with macro
+        // https://github.com/Relm4/Relm4/issues/231
+        if parent.property_value("has-icons").get::<bool>().expect("reading 'has-icons' property from Slider container") {
+            let icon = gtk::Image::from_icon_name(&self.icon);
+            icon.add_css_class("icon");
+            icon.set_use_fallback(false);
+
+            root.append(&icon);
+        }
+
         let widgets = view_output!();
 
         scale.connect_fill_level_notify({
@@ -243,19 +251,16 @@ impl FactoryComponent for Slider {
         let volume_percent = (init.volume.get_linear() * 100.0) as u8;
 
         let icon = match init.icon {
-            Some(name) => {
-                println!("{name}");
-                name
-            },
+            Some(name) => Cow::Owned(name),
             None => {
-                let v = volume_percent;
+                let s = match volume_percent {
+                    v if v <= 75    => "audio-volume-medium",
+                    v if v <= 25    => "audio-volume-low",
+                    _ if init.muted => "audio-volume-muted",
+                    _               => "audio-volume-high",
+                };
 
-                match v {
-                    v if v <= 75    => "audio-volume-medium".to_owned(),
-                    v if v <= 25    => "audio-volume-low".to_owned(),
-                    _ if init.muted => "audio-volume-muted".to_owned(),
-                    _               => "audio-volume-high".to_owned(),
-                }
+                Cow::Borrowed(s)
             },
         };
 
@@ -335,7 +340,7 @@ impl Component for App {
             set_decorated: false,
 
             #[local_ref]
-            slider_box -> gtk::Box {
+            slider_box -> widgets::SliderBox {
                 add_css_class: "main",
                 set_orientation: Orientation::Vertical,
             }
@@ -352,7 +357,7 @@ impl Component for App {
         });
 
         let sliders = FactoryVecDeque::builder()
-            .launch(gtk::Box::default())
+            .launch(widgets::SliderBox::default())
             .forward(sender.input_sender(), std::convert::identity);
 
         let model = App {
@@ -371,6 +376,7 @@ impl Component for App {
 
         let slider_box = model.sliders.container.widget();
         slider_box.set_spacing(config.spacing.map(i32::from).unwrap_or(20));
+        slider_box.set_has_icons(config.show_icons);
 
         let widgets = view_output!();
 
