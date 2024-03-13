@@ -12,6 +12,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ### Fixed
 - (CSS) GTK system theme was unintentionally affecting style.
 - Window quickly resizing because sink buffer was not populated fast enough.
+- Peaker no longer breaks when volume slider is set to 0.
 
 ## [0.1.10] - 2024-03-03
 
