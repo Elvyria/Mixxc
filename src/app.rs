@@ -9,7 +9,7 @@ use relm4::{ComponentParts, ComponentSender, Component, RelmWidgetExt, FactorySe
 use relm4::factory::FactoryVecDeque;
 use relm4::prelude::{DynamicIndex, FactoryComponent};
 
-use gtk::glib::ObjectExt;
+use gtk::glib::Cast;
 use gtk::prelude::{ApplicationExt, GtkWindowExt, BoxExt, GestureSingleExt, OrientableExt, RangeExt, WidgetExt};
 use gtk::pango::EllipsizeMode;
 use gtk::{Orientation, Align, Justification};
@@ -210,7 +210,7 @@ impl FactoryComponent for Slider {
 
         // TODO: Replace with macro
         // https://github.com/Relm4/Relm4/issues/231
-        if parent.property_value("has-icons").get::<bool>().expect("reading 'has-icons' property from Slider container") {
+        if parent.downcast::<widgets::SliderBox>().expect("Slider parent is a SliderBox").has_icons() {
             let icon = gtk::Image::from_icon_name(&self.icon);
             icon.add_css_class("icon");
             icon.set_use_fallback(false);
