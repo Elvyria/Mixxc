@@ -192,8 +192,9 @@ impl FactoryComponent for Slider {
                 gtk::Box {
                     set_orientation: Orientation::Horizontal,
 
-                    #[local_ref]
-                    scale -> gtk::Scale {
+                    // 0.00004 is a rounding error
+                    #[name(scale)]
+                    gtk::Scale::with_range(Orientation::Horizontal, 0.0, self.max + 0.00004, 0.005) {
                         #[track = "self.changed(Slider::volume())"]
                         set_value: self.volume.get_linear(),
                         set_hexpand: true,
@@ -228,13 +229,10 @@ impl FactoryComponent for Slider {
     }
 
     fn init_widgets(&mut self, _: &Self::Index, root: Self::Root, _: &<Self::ParentWidget as relm4::factory::FactoryView>::ReturnedWidget, sender: FactorySender<Self>) -> Self::Widgets {
-        // 0.00004 is a rounding error
-        let scale = gtk::Scale::with_range(Orientation::Horizontal, 0.0, self.max + 0.00004, 0.005);
-
         let widgets = view_output!();
 
-        scale.connect_fill_level_notify({
-            let trough = scale.first_child().expect("getting GtkRange from GtkScale");
+        widgets.scale.connect_fill_level_notify({
+            let trough = widgets.scale.first_child().expect("getting GtkRange from GtkScale");
             let fill = trough.first_child().expect("getting fill from GtkRange");
 
             move |_| fill.queue_resize()
@@ -306,7 +304,6 @@ impl FactoryComponent for Slider {
                }
 
                self.volume.set_linear(v);
-               self.set_volume_percent((v * 100.0) as u8);
 
                let _ = sender.output(Message::VolumeChanged { id: self.id, volume: self.volume });
            },
