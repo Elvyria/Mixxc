@@ -41,7 +41,7 @@ optional = true
 features = ["xlib"]
 
 [dependencies.relm4]
-version = "=0.7.0-rc.1"
+version = "0.7.1"
 default_features = false
 features = ["macros"]
 
