@@ -92,7 +92,6 @@ struct Slider {
     max: f64,
     name: String,
     description: String,
-    #[do_not_track]
     icon: Cow<'static, str>,
     #[no_eq]
     peak: f64,
@@ -124,6 +123,22 @@ pub enum SliderCommand {
     MarkOld,
 }
 
+fn client_icon(icon: Option<String>, volume_percent: u8, muted: bool) -> Cow<'static, str> {
+    match icon {
+        Some(name) => Cow::Owned(name),
+        None => {
+            let s = match volume_percent {
+                _ if muted      => "audio-volume-muted",
+                v if v <= 25    => "audio-volume-low",
+                v if v <= 75    => "audio-volume-medium",
+                _               => "audio-volume-high",
+            };
+
+            Cow::Borrowed(s)
+        },
+    }
+}
+
 #[relm4::factory()]
 impl FactoryComponent for Slider {
     type Init = server::Client;
@@ -144,6 +159,16 @@ impl FactoryComponent for Slider {
 
             #[track = "self.changed(Slider::muted())"]
             set_class_active: ("muted", self.muted),
+
+            gtk::Image {
+                add_css_class: "icon",
+                set_use_fallback: false,
+                #[track = "self.changed(Slider::icon())"]
+                set_from_icon_name: Some(&self.icon),
+                set_visible: root.parent().expect("Slider has a parent")
+                                 .downcast::<widgets::SliderBox>().expect("Slider parent is a SliderBox")
+                                 .has_icons(),
+            },
 
             gtk::Box {
                 set_orientation: Orientation::Vertical,
@@ -206,18 +231,6 @@ impl FactoryComponent for Slider {
         // 0.00004 is a rounding error
         let scale = gtk::Scale::with_range(Orientation::Horizontal, 0.0, self.max + 0.00004, 0.005);
 
-        let parent = root.parent().expect("getting container Widget from Slider");
-
-        // TODO: Replace with macro
-        // https://github.com/Relm4/Relm4/issues/231
-        if parent.downcast::<widgets::SliderBox>().expect("Slider parent is a SliderBox").has_icons() {
-            let icon = gtk::Image::from_icon_name(&self.icon);
-            icon.add_css_class("icon");
-            icon.set_use_fallback(false);
-
-            root.append(&icon);
-        }
-
         let widgets = view_output!();
 
         scale.connect_fill_level_notify({
@@ -250,25 +263,11 @@ impl FactoryComponent for Slider {
 
         let volume_percent = (init.volume.get_linear() * 100.0) as u8;
 
-        let icon = match init.icon {
-            Some(name) => Cow::Owned(name),
-            None => {
-                let s = match volume_percent {
-                    v if v <= 75    => "audio-volume-medium",
-                    v if v <= 25    => "audio-volume-low",
-                    _ if init.muted => "audio-volume-muted",
-                    _               => "audio-volume-high",
-                };
-
-                Cow::Borrowed(s)
-            },
-        };
-
         Self {
             id: init.id,
             name: init.name,
             description: init.description,
-            icon,
+            icon: client_icon(init.icon, volume_percent, init.muted),
             volume: init.volume,
             volume_percent,
             muted: init.muted,
@@ -323,6 +322,7 @@ impl FactoryComponent for Slider {
                self.set_muted(client.muted);
                self.set_name(client.name);
                self.set_description(client.description);
+               self.set_icon(client_icon(client.icon, self.volume_percent, self.muted));
            },
        }
     }
