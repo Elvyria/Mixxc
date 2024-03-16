@@ -89,6 +89,7 @@ struct Slider {
     volume: Volume,
     volume_percent: u8,
     muted: bool,
+    #[do_not_track]
     max: f64,
     name: String,
     description: String,
