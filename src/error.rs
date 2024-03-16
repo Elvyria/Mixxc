@@ -4,6 +4,13 @@ use crate::label;
 
 use thiserror::Error;
 
+#[macro_export]
+macro_rules! warnln {
+    ($($arg:tt)*) => {{
+        println!("{}: {}", label::WARNING, format_args!($($arg)*))
+    }};
+}
+
 #[derive(Error)]
 pub enum Error {
     #[error(transparent)]

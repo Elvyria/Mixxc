@@ -2,12 +2,12 @@ use relm4::Component;
 
 use gtk4_layer_shell::{Edge, KeyboardMode, Layer, LayerShell};
 
-use crate::{label, anchor::Anchor, app::App};
+use crate::{anchor::Anchor, app::App, label, warnln};
 
 impl App where Self: Component {
     pub fn init_wayland(window: &<Self as Component>::Root, anchors: Anchor, margins: &[i32], focusable: bool) {
         if !gtk4_layer_shell::is_supported() {
-            eprintln!("{}: You're using Wayland, but your compositor doesn't support {} protocol.", label::WARNING, label::LAYER_SHELL_PROTOCOL);
+            warnln!("You're using Wayland, but your compositor doesn't support {} protocol.", label::LAYER_SHELL_PROTOCOL);
             return
         }
 
