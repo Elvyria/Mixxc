@@ -2,15 +2,15 @@ use std::borrow::Cow;
 use std::cell::Cell;
 use std::rc::Rc;
 use std::sync::Arc;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use relm4::gtk;
 use relm4::{ComponentParts, ComponentSender, Component, RelmWidgetExt, FactorySender};
 use relm4::factory::FactoryVecDeque;
 use relm4::prelude::{DynamicIndex, FactoryComponent};
 
-use gtk::glib::Cast;
-use gtk::prelude::{ApplicationExt, GtkWindowExt, BoxExt, GestureSingleExt, OrientableExt, RangeExt, WidgetExt};
+use gtk::glib::{Cast, ControlFlow};
+use gtk::prelude::{ApplicationExt, GtkWindowExt, BoxExt, GestureSingleExt, OrientableExt, RangeExt, WidgetExt, WidgetExtManual};
 use gtk::pango::EllipsizeMode;
 use gtk::{Orientation, Align, Justification};
 
@@ -95,7 +95,6 @@ struct Slider {
     icon: Cow<'static, str>,
     #[no_eq]
     peak: f64,
-    old: bool,
     removed: bool,
 }
 
@@ -120,7 +119,6 @@ pub enum SliderMessage {
 #[derive(Debug)]
 pub enum SliderCommand {
     Peak,
-    MarkOld,
 }
 
 fn client_icon(icon: Option<String>, volume_percent: u8, muted: bool) -> Cow<'static, str> {
@@ -150,9 +148,7 @@ impl FactoryComponent for Slider {
     view! {
         root = gtk::Box {
             add_css_class: "client",
-
-            #[track = "self.changed(Slider::old())"]
-            set_class_active: ("new", !self.old),
+            add_css_class: "new",
 
             #[track = "self.changed(Slider::removed())"]
             set_class_active: ("removed", self.removed),
@@ -238,6 +234,20 @@ impl FactoryComponent for Slider {
             move |_| fill.queue_resize()
         });
 
+        widgets.root.connect_realize(|root| {
+            const SECOND: Duration = Duration::from_millis(500);
+            let before: Instant = Instant::now();
+
+            root.add_tick_callback(move |root, _| {
+                if Instant::now() - before > SECOND {
+                    root.remove_css_class("new");
+                    return ControlFlow::Break
+                }
+
+                ControlFlow::Continue
+            });
+        });
+
         widgets
     }
 
@@ -254,11 +264,6 @@ impl FactoryComponent for Slider {
             .drop_on_shutdown()
         });
 
-        sender.oneshot_command(async move {
-            tokio::time::sleep(Duration::from_secs(1)).await;
-            SliderCommand::MarkOld
-        });
-
         let volume_percent = (init.volume.get_linear() * 100.0) as u8;
 
         Self {
@@ -271,7 +276,6 @@ impl FactoryComponent for Slider {
             muted: init.muted,
             max: init.max_volume,
             peak: 0.0,
-            old: false,
             removed: false,
 
             tracker: 0,
@@ -283,7 +287,6 @@ impl FactoryComponent for Slider {
             SliderCommand::Peak => if self.peak > 0.0 {
                 self.set_peak((self.peak - 0.01).max(0.0));
             },
-            SliderCommand::MarkOld => self.set_old(true),
         }
     }
 
