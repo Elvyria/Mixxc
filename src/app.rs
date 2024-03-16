@@ -26,6 +26,7 @@ pub struct App {
     max_volume: f64,
     sliders: Sliders,
 
+    ready: Rc<Cell<bool>>,
     shutdown: Option<CancellationToken>,
 }
 
@@ -374,6 +375,7 @@ impl Component for App {
                     GrowthDirection::BottomRight
                 },
             },
+            ready: Rc::new(Cell::new(false)),
             shutdown: None,
         };
 
@@ -418,7 +420,17 @@ impl Component for App {
             });
         }
 
-        window.connect_realize(|window| window.set_visible(false));
+        window.add_tick_callback({
+            let ready = model.ready.clone();
+
+            move |window, _| {
+                if !ready.get() {
+                    window.set_visible(false);
+                }
+
+                ControlFlow::Break
+            }
+        });
 
         // Wait for server to send server::Ready message or wait and send it ourselves.
         // This is not sound, but 'Timeout' message would not be useful enough.
@@ -467,7 +479,7 @@ impl Component for App {
             Changed(client) => {
                 self.sliders.send(client.id, SliderMessage::ServerChange(client));
             }
-            Ready => if !window.is_visible() {
+            Ready => if !self.ready.replace(true) {
                 window.set_visible(true);
             }
             Error(e) => eprintln!("{}: Audio Server :{e}", label::ERROR),
