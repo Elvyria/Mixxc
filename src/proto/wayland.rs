@@ -5,7 +5,7 @@ use gtk4_layer_shell::{Edge, KeyboardMode, Layer, LayerShell};
 use crate::{label, anchor::Anchor, app::App};
 
 impl App where Self: Component {
-    pub fn init_wayland(window: &<Self as Component>::Root, anchors: Anchor, margins: &[i32]) {
+    pub fn init_wayland(window: &<Self as Component>::Root, anchors: Anchor, margins: &[i32], focusable: bool) {
         if !gtk4_layer_shell::is_supported() {
             eprintln!("{}: You're using Wayland, but your compositor doesn't support {} protocol.", label::WARNING, label::LAYER_SHELL_PROTOCOL);
             return
@@ -14,7 +14,10 @@ impl App where Self: Component {
         window.init_layer_shell();
         window.set_layer(Layer::Top);
         window.set_namespace("volume-mixer");
-        window.set_keyboard_mode(KeyboardMode::OnDemand);
+
+        if focusable {
+            window.set_keyboard_mode(KeyboardMode::OnDemand);
+        }
 
         for (i, anchor) in anchors.iter().enumerate() {
             let edge = anchor.try_into().unwrap();

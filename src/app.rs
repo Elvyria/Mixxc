@@ -381,7 +381,7 @@ impl Component for App {
 
         #[cfg(feature = "Wayland")]
         if crate::xdg::is_wayland() {
-            Self::init_wayland(&window, config.anchors, &config.margins);
+            Self::init_wayland(&window, config.anchors, &config.margins, !config.keep);
         }
 
         #[cfg(feature = "X11")]
