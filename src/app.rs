@@ -235,16 +235,16 @@ impl FactoryComponent for Slider {
         });
 
         widgets.root.connect_realize(|root| {
-            const SECOND: Duration = Duration::from_millis(500);
+            const DELAY: Duration = Duration::from_millis(500);
             let before: Instant = Instant::now();
 
             root.add_tick_callback(move |root, _| {
-                if Instant::now() - before > SECOND {
-                    root.remove_css_class("new");
-                    return ControlFlow::Break
+                if Instant::now() - before < DELAY {
+                    return ControlFlow::Continue
                 }
 
-                ControlFlow::Continue
+                root.remove_css_class("new");
+                ControlFlow::Break
             });
         });
 
