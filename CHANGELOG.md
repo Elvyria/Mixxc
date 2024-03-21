@@ -4,7 +4,7 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
-## [Unreleased]
+## [0.2.0] - 2024-03-21
 
 ### Added
 - Audio client icons can now be desplayed with `-i` `--icon` flag.
@@ -37,7 +37,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - List of sinks will now grow from bottom to top if window is anchored to bottom.
 - Minimal `rustc` version for compilation is now `1.75.0` due to [FileTimes](https://doc.rust-lang.org/std/fs/struct.FileTimes.html) stabilization.
 
-[unreleased]: https://github.com/Elvyria/Mixxc/compare/0.1.10...HEAD
+[0.2.0]: https://github.com/Elvyria/Mixxc/compare/0.1.10...0.2.0
 [0.1.10]: https://github.com/Elvyria/Mixxc/compare/0.1.9...0.1.10
 [0.1.9]: https://github.com/Elvyria/Mixxc/compare/0.1.8...0.1.9
 [0.1.8]: https://github.com/Elvyria/Mixxc/compare/0.1.7...0.1.8
