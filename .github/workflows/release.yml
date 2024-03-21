@@ -22,13 +22,20 @@ jobs:
 
       - name: Build
         run: |
-          nix-shell .github/shell.nix --argstr target ${{ matrix.target }} --run \
-          "cargo build --locked --profile release --features Sass,Wayland,X11"
+          nix-shell .github/shell.nix --argstr target ${{ matrix.target }} --run "
+            cargo build --locked --profile release --features Sass,Wayland,X11
+          "
+
+      - name: Find Executable
+        run: |
+          find target/${{ matrix.target }}/release -maxdepth 1 -type f -executable -exec echo binary={} \; >> "$GITHUB_ENV"
 
       - name: Patch ELF
         run: |
-          nix-shell .github/shell.nix --argstr target ${{ matrix.target }} --run \
-          "patchelf --set-interpreter /lib64/ld-linux-x86-64.so.2 target/${{ matrix.target }}/release/mixxc"
+          nix-shell .github/shell.nix --argstr target ${{ matrix.target }} --run "
+            patchelf --set-interpreter /lib64/ld-linux-x86-64.so.2 ${{ env.binary }}
+            patchelf --remove-rpath ${{ env.binary }}
+          "
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
