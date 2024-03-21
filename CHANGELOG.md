@@ -8,6 +8,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 - Audio client icons can now be desplayed with `-i` `--icon` flag.
+- Automated dynamically linked release builds for general linux distributions (not NixOS) with `glibc` that include all features.
 
 ### Fixed
 - (CSS) GTK system theme was unintentionally affecting style.
