@@ -5,6 +5,7 @@ use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 use relm4::gtk;
+use relm4::once_cell::sync::OnceCell;
 use relm4::{ComponentParts, ComponentSender, Component, RelmWidgetExt, FactorySender};
 use relm4::factory::FactoryVecDeque;
 use relm4::prelude::{DynamicIndex, FactoryComponent};
@@ -236,18 +237,18 @@ impl FactoryComponent for Slider {
             move |_| fill.queue_resize()
         });
 
-        widgets.root.connect_realize(|root| {
+        widgets.root.add_tick_callback({
             const DELAY: Duration = Duration::from_millis(500);
-            let before: Instant = Instant::now();
+            let before: OnceCell<Instant> = OnceCell::new();
 
-            root.add_tick_callback(move |root, _| {
-                if Instant::now() - before < DELAY {
+            move |root, _| {
+                if Instant::now() - *before.get_or_init(Instant::now) < DELAY {
                     return ControlFlow::Continue
                 }
 
                 root.remove_css_class("new");
                 ControlFlow::Break
-            });
+            }
         });
 
         widgets
