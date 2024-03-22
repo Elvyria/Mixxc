@@ -1,6 +1,6 @@
 [package]
 name = "mixxc"
-version = "0.2.0"
+version = "0.2.1"
 authors = ["Elvyria <elvyria@tutanota.com>"]
 description = "Minimalistic volume mixer."
 repository = "https://github.com/Elvyria/mixxc"
