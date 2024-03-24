@@ -56,13 +56,13 @@ struct Args {
     #[argh(switch, short = 'i', long = "icon")]
     icon: bool,
 
+    /// max volume level in percent (default: 100; 1-255)
+    #[argh(option, short = 'x', long = "max-volume")]
+    max_volume: Option<u8>,
+
     /// print version
     #[argh(switch, short = 'v')]
     version: bool,
-
-    /// max volume level in percent (default: 100; 1-255)
-    #[argh(option, long = "max-volume")]
-    max_volume: Option<u8>,
 }
 
 fn main() -> Result<(), Error> {

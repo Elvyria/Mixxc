@@ -8,6 +8,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 - Vertical orientation for volume sliders is now available via `-b v` or `--bar vertical`.
+- Added a short flag for `--max-volume` -> `-x`.
 
 ### Fixed
 - (CSS) Icon wasn't affected by style changes in `default.css`, because class selector was invalid.
