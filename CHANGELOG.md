@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## Unreleased
+
+### Fixed
+- (CSS) Icon wasn't affected by style changes in `default.css`, because class selector was invalid.
+
 ## [0.2.1] - 2024-03-22
 
 ### Fixed
@@ -24,7 +29,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## [0.1.10] - 2024-03-03
 
 ### Deprecated
-- (CSS) `.client { animation: ... }` is not deprecated in favor of `.client.new { animation: ... }`
+- (CSS) `.client { animation: ... }` is now deprecated in favor of `.client.new { animation: ... }`
 
 ### Added
 
@@ -42,6 +47,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - List of sinks will now grow from bottom to top if window is anchored to bottom.
 - Minimal `rustc` version for compilation is now `1.75.0` due to [FileTimes](https://doc.rust-lang.org/std/fs/struct.FileTimes.html) stabilization.
 
+[unreleased]: https://github.com/Elvyria/Mixxc/compare/0.2.1...HEAD
 [0.2.1]: https://github.com/Elvyria/Mixxc/compare/0.2.0...0.2.1
 [0.2.0]: https://github.com/Elvyria/Mixxc/compare/0.1.10...0.2.0
 [0.1.10]: https://github.com/Elvyria/Mixxc/compare/0.1.9...0.1.10

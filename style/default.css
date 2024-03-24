@@ -34,7 +34,7 @@ window {
 	animation: client-remove 300ms ease;
 }
 
-client.icon {
+.client .icon {
 	color: @fg;
 
 	padding-right: 13px;
