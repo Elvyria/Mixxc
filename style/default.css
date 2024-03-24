@@ -63,14 +63,17 @@ window {
 	text-decoration: line-through;
 }
 
+/* Slider Knob */
 .client.muted slider {
 	background: shade(@accent, 0.5);
 }
 
+/* Slider Bar Filled */
 .client.muted highlight {
 	background: shade(@accent, 0.5);
 }
 
+/* Slider Peak */
 .client.muted fill {
 	border-top: 1px solid shade(@accent, 0.5);
 	border-bottom: 1px solid shade(@accent, 0.5);
@@ -144,6 +147,74 @@ scale > trough > fill {
 	}
 	to {
 		transform: translateX(-200px);
+		opacity: 0;
+	}
+}
+
+.client.vertical.new {
+	animation: client-add-vertical 300ms ease;
+}
+
+.client.vertical.removed {
+	animation: client-remove-vertical 300ms ease;
+}
+
+.client.vertical .icon {
+	padding-right: 0px;
+	padding-bottom: 5px;
+
+	-gtk-icon-size: 20px;
+}
+
+.client.vertical .volume {
+	padding-top: 10px;
+	padding-left: 0px;
+	padding-bottom: 0px;
+}
+
+/* Slider Bar */
+scale.vertical > trough {
+	min-width: 4px;
+
+	margin-top: 10px;
+}
+
+/* Slider Knob (Vertical) */
+scale.vertical > trough > slider {
+	margin-top: 0;
+	margin-bottom: 0;
+
+	margin-left: -7px;
+	margin-right: -7px;
+
+	min-height: 6px;
+	min-width: 14px;
+}
+
+/* Slider Peak (Vertical) */
+scale.vertical > trough > fill {
+	border-top: none;
+	border-bottom: none;
+	border-left: 1px solid alpha(@accent, 0.8);
+	border-right: 1px solid alpha(@accent, 0.8);
+}
+
+@keyframes client-add-vertical {
+	from {
+		transform: translateY(200px);
+		opacity: 0;
+	}
+	to {
+		opacity: 1;
+	}
+}
+
+@keyframes client-remove-vertical {
+	from {
+		opacity: 1;
+	}
+	to {
+		transform: translateY(200px);
 		opacity: 0;
 	}
 }

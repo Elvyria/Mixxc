@@ -40,6 +40,10 @@ struct Args {
     #[argh(option, short = 'm', long = "margin")]
     margins: Vec<i32>,
 
+    /// volume slider orientation: (h)orizontal, (v)ertical
+    #[argh(option, short = 'b')]
+    bar: Option<String>,
+
     /// path to the userstyle
     #[argh(option, short = 'u')]
     userstyle: Option<PathBuf>,
@@ -94,15 +98,19 @@ fn main() -> Result<(), Error> {
 
     app.set_global_css(&style);
 
+    // Vertically oriented bars imply that we are stacking clients horizontally
+    let horizontal = args.bar.unwrap_or_default().starts_with('v');
+
     app.run::<app::App>(app::Config {
-        width:   args.width.unwrap_or(350),
-        height:  args.height.unwrap_or(30),
+        width: args.width.unwrap_or(if horizontal { 65 } else { 350 }),
+        height: args.height.unwrap_or(if horizontal { 350 } else { 30 }),
         spacing: args.spacing,
         margins: args.margins,
         keep:    args.keep,
         max_volume: args.max_volume.unwrap_or(100).max(1) as f64 / 100.0,
         show_icons: args.icon,
         anchors,
+        horizontal,
 
         server: server::pulse::Pulse::new().into(),
     });

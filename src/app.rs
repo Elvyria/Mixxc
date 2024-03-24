@@ -80,6 +80,7 @@ pub struct Config {
     pub keep: bool,
     pub max_volume: f64,
     pub show_icons: bool,
+    pub horizontal: bool,
 
     pub server: AudioServerEnum,
 }
@@ -164,39 +165,34 @@ impl FactoryComponent for Slider {
                 set_use_fallback: false,
                 #[track = "self.changed(Slider::icon())"]
                 set_from_icon_name: Some(&self.icon),
-                set_visible: root.parent().expect("Slider has a parent")
-                                 .downcast::<widgets::SliderBox>().expect("Slider parent is a SliderBox")
-                                 .has_icons(),
+                set_visible: parent.has_icons(),
             },
 
             gtk::Box {
                 set_orientation: Orientation::Vertical,
 
+                #[name(name)]
                 gtk::Label {
                     #[track = "self.changed(Slider::name())"]
                     set_label: &self.name,
                     add_css_class: "name",
-                    set_halign: Align::Start,
                     set_ellipsize: EllipsizeMode::End,
                 },
 
+                #[name(description)]
                 gtk::Label {
                     #[track = "self.changed(Slider::description())"]
                     set_label: &self.description,
                     add_css_class: "description",
-                    set_halign: Align::Start,
                     set_ellipsize: EllipsizeMode::End,
                 },
 
+                #[name(scale_wrapper)]
                 gtk::Box {
-                    set_orientation: Orientation::Horizontal,
-
-                    // 0.00004 is a rounding error
-                    #[name(scale)]
+                    #[name(scale)] // 0.00004 is a rounding error
                     gtk::Scale::with_range(Orientation::Horizontal, 0.0, self.max + 0.00004, 0.005) {
                         #[track = "self.changed(Slider::volume())"]
                         set_value: self.volume.get_linear(),
-                        set_hexpand: true,
                         set_slider_size_fixed: false,
                         set_show_fill_level: true,
                         set_restrict_to_fill_level: false,
@@ -228,7 +224,36 @@ impl FactoryComponent for Slider {
     }
 
     fn init_widgets(&mut self, _: &Self::Index, root: Self::Root, _: &<Self::ParentWidget as relm4::factory::FactoryView>::ReturnedWidget, sender: FactorySender<Self>) -> Self::Widgets {
+        let parent = root.parent().expect("Slider has a parent")
+            .downcast::<widgets::SliderBox>().expect("Slider parent is a SliderBox");
+
         let widgets = view_output!();
+
+        match parent.orientation() {
+            Orientation::Horizontal => {
+                widgets.root.set_orientation(Orientation::Vertical);
+                widgets.root.set_halign(Align::Center);
+
+                let window = parent.toplevel_window().unwrap();
+                widgets.root.set_width_request(window.default_width());
+
+                widgets.name.set_halign(Align::Center);
+                widgets.description.set_halign(Align::Center);
+
+                widgets.scale_wrapper.set_orientation(Orientation::Vertical);
+
+                widgets.scale.set_orientation(Orientation::Vertical);
+                widgets.scale.set_vexpand(true);
+                widgets.scale.set_inverted(true);
+            }
+            Orientation::Vertical => {
+                widgets.name.set_halign(Align::Start);
+                widgets.description.set_halign(Align::Start);
+
+                widgets.scale.set_hexpand(true);
+            }
+            _ => panic!("Slider recieved an unknown orientation from parent"),
+        }
 
         widgets.scale.connect_fill_level_notify({
             let trough = widgets.scale.first_child().expect("getting GtkRange from GtkScale");
@@ -346,8 +371,14 @@ impl Component for App {
 
             #[local_ref]
             slider_box -> widgets::SliderBox {
-                add_css_class: "main",
-                set_orientation: Orientation::Vertical,
+                add_css_class:   "main",
+                set_has_icons:   config.show_icons,
+                set_spacing:     config.spacing.map(i32::from).unwrap_or(20),
+                set_orientation: if config.horizontal {
+                    Orientation::Horizontal
+                } else {
+                    Orientation::Vertical
+                }
             }
         }
     }
@@ -365,24 +396,24 @@ impl Component for App {
             .launch(widgets::SliderBox::default())
             .forward(sender.input_sender(), std::convert::identity);
 
+        let direction = match config.horizontal {
+            true  if config.anchors.contains(Anchor::Right) => GrowthDirection::TopLeft,
+            false if config.anchors.contains(Anchor::Bottom) => GrowthDirection::TopLeft,
+            _ => GrowthDirection::BottomRight,
+        };
+
         let model = App {
             server,
             max_volume: config.max_volume,
             sliders: Sliders {
                 container: sliders,
-                direction: if config.anchors.contains(Anchor::Bottom) {
-                    GrowthDirection::TopLeft
-                } else {
-                    GrowthDirection::BottomRight
-                },
+                direction,
             },
             ready: Rc::new(Cell::new(false)),
             shutdown: None,
         };
 
         let slider_box = model.sliders.container.widget();
-        slider_box.set_spacing(config.spacing.map(i32::from).unwrap_or(20));
-        slider_box.set_has_icons(config.show_icons);
 
         let widgets = view_output!();
 
