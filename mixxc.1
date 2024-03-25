@@ -1,0 +1,123 @@
+.Dd March 25, 2024
+.Dt MIXXC 1
+.Os
+.Sh NAME
+.Nm mixxc
+.Nd minimalistic volume mixer
+.Sh DESCRIPTION
+Mixxc is a volume mixer for managing application volume levels, focused on providing a high level of customization for widget users and creators.
+.Sh OPTIONS
+.Bl -tag \-width Ds
+.It Fl w , Fl \-width Ar px
+In horizontal bar orientation it affects only the base width of the window and will not change.
+In vertical, it's used to specify width of each audio client.
+.It Fl h , Fl \-height Ar px
+In vertical bar orientation it only affects the base height of the window and will not change.
+In horizontal, it will be ignored if window requires more space.
+.It Fl s , Fl \-spacing Ar px
+Space gap between audio clients in pixels.
+.It Fl a , Fl \-anchor Ar side
+Snap window to the side of the screen. Can be specified multiple times.
+
+.Bl -bullet -compact
+.It
+t, top
+.It
+b, bottom
+.It
+l, left
+.It
+r, right
+.El
+.It Fl m , Fl \-margin Ar px
+Distance that window will keep from each anchor point respectively.
+.It Fl u , Fl \-userstyle Ar file
+Specify path to userstyle. By default,
+.Nm
+will attempt to read style file from $XDG_CONFIG_HOME/mixxc, with priority for CSS supersets.
+
+.Bl -bullet -compact
+.It
+\&.css
+.It
+\&.scss (Feature: Sass)
+.It
+\&.sass (Feature: Sass)
+.El
+.It Fl x , Fl \-max\-volume Ar n
+Highest achievable volume level in percents. Minimum is 1. Default is 100. Maximum is 255.
+.It Fl b , Fl \-bar Ar orientation
+Changes orientation of audio sliders.
+
+.Bl -bullet -compact
+.It
+h, horizontal
+.It
+v, vertical
+.El
+.It Fl i , Fl \-icon
+Show icons that applications provide or display a generic reactive volume icon.
+If not all application icons are displayed properly, you might need to update icon cache
+.Xr gtk4-update-icon-cache 1
+or update $XDG_DATA_DIRS.
+.It Fl k , Fl \-keep
+Prevent window from closing itself. By default, window will be closed if focus is lost and mouse is no longer over it.
+.It Fl v , Fl \-version
+Print version information.
+.It Fl \-help
+Print help information.
+.El
+.Sh FILES
+.Bl -compact -tag -width Ds
+.It Pa $XDG_CONFIG_HOME/mixxc/style.css
+.It Pa $XDG_CONFIG_HOME/mixxc/style.scss
+.It Pa $XDG_CONFIG_HOME/mixxc/style.sass
+.El
+.Sh FEATURES
+Here's a list of features that can be included or excluded at compile time.
+Excluding some of them might lead to a smaller binary size and performance improvements.
+.Bl -ohang
+.It - Sass
+Support for CSS supersets.
+.It - X11
+Support for X Window System.
+.It - Wayland
+Support for Wayland.
+.El
+.Sh EXAMPLES
+Open mixxc in the bottom right corner with some spacing.
+.Bd -literal -offset indent
+$ mixxc --anchor bottom	--margin 20 \\
+	--anchor right	--margin 20
+.Ed
+
+Using short options to switch to vertical slider orientation with icons, set width and height for each one of them.
+.Bd -literal -offset indent
+$ mixxc -b v -i -w 75 -h 350
+.Ed
+
+If you don't need auto-closing - you can turn your custom made button into a switch.
+.Bd -literal -offset indent
+$ pkill mixxc | mixxc --keep
+.Ed
+
+GTK4 supports multiple rendering backends which might improve startup time, memory usage or fix graphical glitches.
+.Bd -literal -offset indent
+$ GSK_RENDERER=help mixxc
+.Ed
+.Sh AUTHORS
+Elvyria <elvyria@tutanota.com>
+.Sh BUGS
+.Bl -ohang
+.It Firefox (123.0.1.1)
+.Bl -bullet
+.It
+Muted playback removes audio sink and discards playback description information when unmuted.
+.It
+Jumping to any part of playback results in `Remove <-> Create` request instead of `Modify`.
+.It
+Volume levels is never requested from audio server, this causes desynchronization between volume levels.
+.El
+
+These problems are exclusive to Firefox and do not appear under Chromium based browsers.
+.El

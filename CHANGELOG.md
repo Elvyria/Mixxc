@@ -7,6 +7,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## Unreleased
 
 ### Added
+- Added a man page.
 - Vertical orientation for volume sliders is now available via `-b v` or `--bar vertical`.
 - Added a short flag for `--max-volume` -> `-x`.
 
