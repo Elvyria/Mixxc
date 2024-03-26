@@ -41,7 +41,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.target }}
-          path: target/${{ matrix.target }}/release/mixxc
+          path: ${{ env.binary }}
           if-no-files-found: error
           overwrite: true
 
@@ -63,7 +63,7 @@ jobs:
         run: |
           mkdir -p packages
           for dir in artifacts/*; do
-            tar czf "packages/${dir##*/}.tar.gz" -C $dir .
+            tar czf "packages/${dir##*/}.tar.gz" doc/*.1 style/* LICENSE -C $dir .
           done
 
       - name: Release
