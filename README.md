@@ -5,7 +5,7 @@
 Mixxc is a minimalistic and customizable volume mixer, created to seamlessly complement desktop widgets.  
 Currently, it supports only `pulseaudio` and `pipewire` (through the pulseaudio interface) by utilizing `libpulseaudio` to receive audio events.
 
-![Preview - Vertical](https://github.com/Elvyria/Mixxc/assets/2061234/6f881998-23ae-42d9-b40a-20fafde7dd92)
+![Preview - Vertical](https://github.com/Elvyria/Mixxc/assets/2061234/cc7c1849-ec4b-4e58-840e-cf66db99be76)
 ![Preview](https://user-images.githubusercontent.com/2061234/270078395-6454be21-aa09-4da2-8a07-3a3c9b41138f.png)
 
 ## Usage
