@@ -13,6 +13,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 - (CSS) Icon wasn't affected by style changes in `default.css`, because class selector was invalid.
+- (CSS) Name and description used white color instead of the foreground.
 
 ## [0.2.1] - 2024-03-22
 

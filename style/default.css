@@ -2,7 +2,7 @@
 
 /* https://docs.gtk.org/gtk4/css-properties.html */
 @define-color bg     #161616;
-@define-color fg     #B9B9B9;
+@define-color fg     #FFFFFF;
 @define-color accent #684EFF;
 
 * {
@@ -21,7 +21,7 @@ window {
 }
 
 .client {
-	color: white;
+	color: @fg;
 	font-family: 'Noto Sans';
 	font-size: 1.1em;
 }
