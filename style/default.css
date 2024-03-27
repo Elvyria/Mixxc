@@ -53,12 +53,14 @@ window {
 	font-size: 0;
 } */
 
+/* Numeric Volume Level */
 .client .volume {
 	color: @fg;
 	padding-left: 10px;
 	padding-bottom: 2px;
 }
 
+/* Numeric Volume Level */
 .client.muted .volume {
 	text-decoration: line-through;
 }
@@ -166,6 +168,7 @@ scale > trough > fill {
 	-gtk-icon-size: 20px;
 }
 
+/* Numeric Volume Level */
 .client.vertical .volume {
 	padding-top: 10px;
 	padding-left: 0px;

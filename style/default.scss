@@ -1,5 +1,6 @@
 /* Please refer to GTK4 CSS specification */
 
+/* https://docs.gtk.org/gtk4/css-properties.html */
 $bg:     #161616;
 $fg:     #B9B9B9;
 $accent: #684EFF;
@@ -41,16 +42,17 @@ window {
 		-gtk-icon-style: symbolic;
 	}
 
+	/* Hide Application Name
 	.name {
-		/* Hide Application Name */
-		// font-size: 0;
-	}
+		font-size: 0;
+	} */
 
+	/* Hide Application Description
 	.description {
-		/* Hide Application Description */
-		/* font-size: 0; */
-	}
+		font-size: 0;
+	} */
 
+	/* Numeric Volume Level */
 	.volume {
 		color: $fg;
 		padding-left: 15px;
@@ -110,20 +112,25 @@ window {
 	}
 
 	&.muted {
+		/* Numeric Volume Level */
 		.volume {
 			text-decoration: line-through;
 		}
 
 		scale {
+			/* Slider Bar */
 			trough {
+				/* Slider Knob */
 				slider {
 					background: shade($accent, 0.5);
 				}
 
+				/* Slider Bar Filled */
 				highlight {
 					background: shade($accent, 0.5);
 				}
 
+				/* Slider Peak */
 				fill {
 					border-top: 1px solid shade($accent, 0.5);
 					border-bottom: 1px solid shade($accent, 0.5);
@@ -169,6 +176,7 @@ window {
 		-gtk-icon-size: 20px;
 	}
 
+	/* Numeric Volume Level */
 	.volume {
 		padding-top: 10px;
 		padding-left: 0px;
