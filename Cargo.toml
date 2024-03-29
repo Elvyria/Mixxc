@@ -12,6 +12,7 @@ Wayland = ["dep:gtk4-layer-shell"]
 Sass = ["dep:grass"]
 X11 = ["dep:x11rb", "dep:gdk-x11"]
 PipeWire = []
+Accent = ["dep:zbus"]
 
 [dependencies]
 anyhow = "1.0"
@@ -49,3 +50,9 @@ features = ["macros"]
 version = "2.0"
 default_features = false
 features = ["pa_v8"]
+
+[dependencies.zbus]
+version = "4"
+default-features = false
+features = ["tokio"]
+optional = true

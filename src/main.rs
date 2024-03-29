@@ -7,6 +7,8 @@ mod proto;
 mod error;
 mod style;
 mod widgets;
+#[cfg(feature = "Accent")]
+mod accent;
 
 use std::{fs, path::PathBuf};
 
