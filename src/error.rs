@@ -25,6 +25,10 @@ pub enum Error {
     #[cfg(feature = "Sass")]
     #[error(transparent)]
     Cache(#[from] CacheError),
+
+    #[cfg(feature = "Accent")]
+    #[error(transparent)]
+    Accent(#[from] ZbusError),
 }
 
 impl Debug for Error {
@@ -93,4 +97,14 @@ pub enum CacheError {
 
     #[error("Unable to update mtime for cache ({path})\n{e}")]
     MTime { e: io::Error, path: PathBuf },
+}
+
+#[cfg(feature = "Accent")]
+#[derive(Error, Debug)]
+pub enum ZbusError {
+    #[error("Unable to read `{key}` from `{namespace}, make sure that your `xdg-desktop-portal` supports it and configured correctly`\n{e}")]
+    Read { e: zbus::Error, namespace: String, key: String },
+
+    #[error("Unable to parse unexpected result from the portal\n{v}")]
+    BadResult { v: String }
 }
