@@ -26,20 +26,9 @@ window {
 	font-size: 1.1em;
 }
 
-.client.new {
-	animation: client-add 300ms ease;
-}
-
-.client.removed {
-	animation: client-remove 300ms ease;
-}
-
 .client .icon {
 	color: @fg;
 
-	padding-right: 13px;
-
-	-gtk-icon-size: 16px;
 	-gtk-icon-style: symbolic;
 }
 
@@ -56,62 +45,26 @@ window {
 /* Numeric Volume Level */
 .client .volume {
 	color: @fg;
-	padding-left: 10px;
-	padding-bottom: 2px;
-}
-
-/* Numeric Volume Level */
-.client.muted .volume {
-	text-decoration: line-through;
-}
-
-/* Slider Knob */
-.client.muted slider {
-	background: shade(@accent, 0.5);
-}
-
-/* Slider Bar Filled */
-.client.muted highlight {
-	background: shade(@accent, 0.5);
-}
-
-/* Slider Peak */
-.client.muted fill {
-	border-top: 1px solid shade(@accent, 0.5);
-	border-bottom: 1px solid shade(@accent, 0.5);
 }
 
 /* Slider Bar */
-scale > trough {
-	min-height: 4px;
-
+.client scale > trough {
 	background-color: lighter(@bg);
-
-	border: none;
 	border-radius: 10px;
 }
 
 /* Slider Knob */
-scale > trough > slider {
-	margin-left: 0;
-	margin-right: 0;
-
-	margin-top: -7px;
-	margin-bottom: -7px;
-
-	padding: 0 0;
+.client scale > trough > slider {
+	padding: 0;
 
 	border: none;
 	border-radius: 2px;
-
-	min-height: 14px;
-	min-width: 6px;
 
 	background: @accent;
 }
 
 /* Slider Bar Filled */
-scale > trough > highlight {
+.client scale > trough > highlight {
 	background-color: @accent;
 
 	border: none;
@@ -123,17 +76,30 @@ scale > trough > highlight {
 }
 
 /* Slider Peak */
-scale > trough > fill {
+.client scale > trough > fill {
 	background: none;
 
-	border-top: 1px solid alpha(@accent, 0.8);
-	border-bottom: 1px solid alpha(@accent, 0.8);
 	border-radius: 10px;
 
 	margin: 0px;
 }
 
-@keyframes client-add {
+/* Numeric Volume Level */
+.client.muted .volume {
+	text-decoration: line-through;
+}
+
+/* Slider Knob */
+.client.muted scale > trough > slider {
+	background: shade(@accent, 0.5);
+}
+
+/* Slider Bar Filled */
+.client.muted scale > trought > highlight {
+	background: shade(@accent, 0.5);
+}
+
+@keyframes client-add-horizontal {
 	from {
 		transform: translateX(-200px);
 		opacity: 0;
@@ -143,7 +109,7 @@ scale > trough > fill {
 	}
 }
 
-@keyframes client-remove {
+@keyframes client-remove-horizontal {
 	from {
 		opacity: 1;
 	}
@@ -151,6 +117,52 @@ scale > trough > fill {
 		transform: translateX(-200px);
 		opacity: 0;
 	}
+}
+
+.client.horizontal.new {
+	animation: client-add-horizontal 300ms ease;
+}
+
+.client.horizontal.new.removed {
+	animation: client-remove-horizontal 300ms ease;
+}
+
+.client.horizontal .icon {
+	padding-right: 13px;
+
+	-gtk-icon-size: 16px;
+}
+
+/* Numeric Volume Level */
+.client.horizontal .volume {
+	padding-left: 15px;
+	padding-bottom: 2px;
+}
+
+/* Slider Bar */
+.client.horizontal scale > trough {
+	min-height: 4px;
+}
+
+/* Slider Knob */
+.client.horizontal scale > trough > slider {
+	min-height: 14px;
+	min-width: 6px;
+
+	margin-top: -7px;
+	margin-bottom: -7px;
+}
+
+/* Slider Peak */
+.client.horizontal scale > trough > fill {
+	border-top: 1px solid alpha(@accent, 0.8);
+	border-bottom: 1px solid alpha(@accent, 0.8);
+}
+
+/* Slider Peak */
+.client.horizontal.muted scale > trough > fill {
+	border-top: 1px solid shade(@accent, 0.5);
+	border-bottom: 1px solid shade(@accent, 0.5);
 }
 
 .client.vertical.new {
@@ -162,7 +174,6 @@ scale > trough > fill {
 }
 
 .client.vertical .icon {
-	padding-right: 0px;
 	padding-bottom: 5px;
 
 	-gtk-icon-size: 20px;
@@ -171,22 +182,17 @@ scale > trough > fill {
 /* Numeric Volume Level */
 .client.vertical .volume {
 	padding-top: 10px;
-	padding-left: 0px;
-	padding-bottom: 0px;
 }
 
 /* Slider Bar */
-scale.vertical > trough {
+.client.vertical scale > trough {
 	min-width: 4px;
 
 	margin-top: 10px;
 }
 
-/* Slider Knob (Vertical) */
-scale.vertical > trough > slider {
-	margin-top: 0;
-	margin-bottom: 0;
-
+/* Slider Knob */
+.client.vertical scale > trough > slider {
 	margin-left: -7px;
 	margin-right: -7px;
 
@@ -194,12 +200,16 @@ scale.vertical > trough > slider {
 	min-width: 14px;
 }
 
-/* Slider Peak (Vertical) */
-scale.vertical > trough > fill {
-	border-top: none;
-	border-bottom: none;
+/* Slider Peak */
+.client.vertical scale > trough > fill {
 	border-left: 1px solid alpha(@accent, 0.8);
 	border-right: 1px solid alpha(@accent, 0.8);
+}
+
+/* Slider Peak */
+.client.vertical.muted scale > trough > fill {
+	border-left: 1px solid shade(@accent, 0.5);
+	border-right: 1px solid shade(@accent, 0.5);
 }
 
 @keyframes client-add-vertical {

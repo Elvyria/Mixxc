@@ -2,7 +2,7 @@
 
 /* https://docs.gtk.org/gtk4/css-properties.html */
 $bg:     #161616;
-$fg:     #B9B9B9;
+$fg:     #FFFFFF;
 $accent: #684EFF;
 
 * {
@@ -25,69 +25,45 @@ window {
 	font-family: 'Noto Sans';
 	font-size: 1.1em;
 
-	&.new {
-		animation: client-add 300ms ease;
-	}
-
-	&.removed {
-		animation: client-remove 300ms ease;
-	}
-
 	.icon {
 		color: $fg;
 
-		padding-right: 13px;
-
-		-gtk-icon-size: 16px;
 		-gtk-icon-style: symbolic;
 	}
 
-	/* Hide Application Name
-	.name {
+	/* .name {
+		// Hide Application Name
 		font-size: 0;
 	} */
 
-	/* Hide Application Description
-	.description {
+	/* .description {
+		// Hide Application Description
 		font-size: 0;
 	} */
 
-	/* Numeric Volume Level */
 	.volume {
+		/* Numeric Volume Level */
 		color: $fg;
-		padding-left: 15px;
-		padding-bottom: 2px;
 	}
 
 	scale {
-		/* Slider Bar */
 		trough {
-			min-height: 4px;
-
+			/* Slider Bar */
 			background-color: lighter($bg);
 			border-radius: 10px;
 
-			/* Slider Knob */
 			slider {
-				margin-left: 0;
-				margin-right: 0;
-
-				margin-top: -7px;
-				margin-bottom: -7px;
-
-				padding: 0 0;
+				/* Slider Knob */
+				padding: 0;
 
 				border: none;
 				border-radius: 2px;
 
-				min-height: 14px;
-				min-width: 6px;
-
 				background-color: $accent;
 			}
 
-			/* Slider Bar Filled */
 			highlight {
+				/* Slider Bar Filled */
 				background-color: $accent;
 
 				border: none;
@@ -98,12 +74,10 @@ window {
 				transition: background-color 300ms;
 			}
 
-			/* Slider Peak */
 			fill {
+				/* Slider Peak */
 				background: none;
 
-				border-top: 1px solid rgba($accent, 0.8);
-				border-bottom: 1px solid rgba($accent, 0.8);
 				border-radius: 10px;
 
 				margin: 0px;
@@ -112,26 +86,75 @@ window {
 	}
 
 	&.muted {
-		/* Numeric Volume Level */
 		.volume {
+			/* Numeric Volume Level */
 			text-decoration: line-through;
 		}
 
 		scale {
-			/* Slider Bar */
 			trough {
-				/* Slider Knob */
 				slider {
+					/* Slider Knob */
 					background: shade($accent, 0.5);
 				}
 
-				/* Slider Bar Filled */
 				highlight {
+					/* Slider Bar Filled */
 					background: shade($accent, 0.5);
 				}
+			}
+		}
+	}
+}
 
+.client.horizontal {
+	&.new {
+		animation: client-add-horizontal 300ms ease;
+	}
+
+	&.removed {
+		animation: client-remove-horizontal 300ms ease;
+	}
+
+	.icon {
+		padding-right: 13px;
+
+		-gtk-icon-size: 16px;
+	}
+
+	.volume {
+		/* Numeric Volume Level */
+		padding-left: 15px;
+		padding-bottom: 2px;
+	}
+
+	scale {
+		trough {
+			/* Slider Bar */
+			min-height: 4px;
+
+			slider {
+				/* Slider Knob */
+				min-height: 14px;
+				min-width: 6px;
+
+				margin-top: -7px;
+				margin-bottom: -7px;
+			}
+
+			fill {
 				/* Slider Peak */
+				border-top: 1px solid rgba($accent, 0.8);
+				border-bottom: 1px solid rgba($accent, 0.8);
+			}
+		}
+	}
+
+	&.muted {
+		scale {
+			trough {
 				fill {
+					/* Slider Peak */
 					border-top: 1px solid shade($accent, 0.5);
 					border-bottom: 1px solid shade($accent, 0.5);
 				}
@@ -140,7 +163,7 @@ window {
 	}
 }
 
-@keyframes client-add {
+@keyframes client-add-horizontal {
 	from {
 		transform: translateX(-200px);
 		opacity: 0;
@@ -150,7 +173,7 @@ window {
 	}
 }
 
-@keyframes client-remove {
+@keyframes client-remove-horizontal {
 	from {
 		opacity: 1;
 	}
@@ -170,31 +193,25 @@ window {
 	}
 
 	.icon {
-		padding-right: 0px;
 		padding-bottom: 5px;
 
 		-gtk-icon-size: 20px;
 	}
 
-	/* Numeric Volume Level */
 	.volume {
+		/* Numeric Volume Level */
 		padding-top: 10px;
-		padding-left: 0px;
-		padding-bottom: 0px;
 	}
 
 	scale {
-		/* Slider Bar */
 		trough {
+			/* Slider Bar */
 			min-width: 4px;
 
 			margin-top: 10px;
 
-			/* Slider Knob */
 			slider {
-				margin-top: 0;
-				margin-bottom: 0;
-
+				/* Slider Knob */
 				margin-left: -7px;
 				margin-right: -7px;
 
@@ -202,12 +219,22 @@ window {
 				min-width: 14px;
 			}
 
-			/* Slider Peak (Vertical) */
 			fill {
-				border-top: none;
-				border-bottom: none;
+				/* Slider Peak */
 				border-left: 1px solid rgba($accent, 0.8);
 				border-right: 1px solid rgba($accent, 0.8);
+			}
+		}
+	}
+
+	&.muted {
+		scale {
+			trough {
+				fill {
+					/* Slider Peak */
+					border-left: 1px solid shade($accent, 0.5);
+					border-right: 1px solid shade($accent, 0.5);
+				}
 			}
 		}
 	}
