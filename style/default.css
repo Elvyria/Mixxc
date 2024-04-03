@@ -95,7 +95,7 @@ window {
 }
 
 /* Slider Bar Filled */
-.client.muted scale > trought > highlight {
+.client.muted scale > trough > highlight {
 	background: shade(@accent, 0.5);
 }
 
