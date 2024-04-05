@@ -1,15 +1,3 @@
-mod xdg;
-mod server;
-mod app;
-mod anchor;
-mod label;
-mod proto;
-mod error;
-mod style;
-mod widgets;
-#[cfg(feature = "Accent")]
-mod accent;
-
 use std::{fs, path::PathBuf};
 
 use error::{Error, ConfigError};
@@ -155,3 +143,16 @@ fn config_dir() -> Result<PathBuf, ConfigError> {
 
     Ok(dir)
 }
+
+mod xdg;
+mod server;
+mod app;
+mod anchor;
+mod label;
+mod proto;
+mod error;
+mod style;
+mod widgets;
+
+#[cfg(feature = "Accent")]
+mod accent;
