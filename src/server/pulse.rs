@@ -182,7 +182,7 @@ fn create_peeker(context: &mut Context, sender: &Sender<Message>, i: u32) -> Opt
 
     let mut stream = Stream::new(context, "Sink Input Peaker", &peak_spec, None)?;
 
-    let flags: stream::FlagSet = stream::FlagSet::PEAK_DETECT | stream::FlagSet::ADJUST_LATENCY;
+    let flags: stream::FlagSet = stream::FlagSet::PEAK_DETECT | stream::FlagSet::ADJUST_LATENCY | stream::FlagSet::START_UNMUTED;
 
     stream.set_monitor_stream(i).unwrap();
     stream.connect_record(None, Some(PEAK_BUF_ATTR), flags).unwrap();
