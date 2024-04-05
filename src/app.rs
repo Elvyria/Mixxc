@@ -1,4 +1,4 @@
-use std::borrow::Cow;
+use std::borrow::{Borrow, Cow};
 use std::cell::Cell;
 use std::rc::Rc;
 use std::sync::Arc;
@@ -62,6 +62,12 @@ impl Sliders {
         }
 
         sliders.drop();
+    }
+
+    fn contains(&self, id: u32) -> bool {
+        self.container.borrow()
+            .iter()
+            .any(|e| e.id == id)
     }
 
     fn send(&self, id: u32, message: SliderMessage) {
@@ -494,6 +500,8 @@ impl Component for App {
                 }
             }
             Removed(id) => {
+                if !self.sliders.contains(id) { return }
+
                 self.sliders.send(id, SliderMessage::Removed);
 
                 sender.command({
