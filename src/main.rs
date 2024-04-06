@@ -51,7 +51,7 @@ struct Args {
     max_volume: Option<u8>,
 
     /// enable master volume
-    #[argh(switch, short = 'g', long = "master")]
+    #[argh(switch, short = 'M', long = "master")]
     master: bool,
 
     /// print version
