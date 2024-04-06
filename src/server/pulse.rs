@@ -8,8 +8,8 @@ use anyhow::anyhow;
 use relm4::Sender;
 
 use libpulse_binding::callbacks::ListResult;
-use libpulse_binding::context::introspect::SinkInputInfo;
-use libpulse_binding::context::subscribe::{InterestMaskSet, Operation};
+use libpulse_binding::context::introspect::{SinkInfo, SinkInputInfo};
+use libpulse_binding::context::subscribe::{Facility, InterestMaskSet, Operation};
 use libpulse_binding::context::{Context, FlagSet};
 use libpulse_binding::def::BufferAttr;
 use libpulse_binding::mainloop::standard::{Mainloop, IterateResult};
@@ -119,24 +119,35 @@ impl AudioServer for Pulse {
         };
 
         if let Ok(Some(context)) = self.context.lock().as_deref() {
-            context.introspect().set_sink_input_volume(id, &cv, None);
+            match id {
+                super::id::MASTER => context.introspect().set_sink_volume_by_index(0, &cv, None),
+                _ => context.introspect().set_sink_input_volume(id, &cv, None),
+            };
         }
     }
 
     fn set_mute(&self, id: u32, flag: bool) {
         if let Ok(Some(context)) = self.context.lock().as_deref() {
-            context.introspect().set_sink_input_mute(id, flag, None);
+            match id {
+                super::id::MASTER => context.introspect().set_sink_mute_by_index(0, flag, None),
+                _ => context.introspect().set_sink_input_mute(id, flag, None),
+            };
         }
     }
 }
 
-fn add_sink_input(info: ListResult<&SinkInputInfo>, context: &Arc<Mutex<Option<Context>>>, sender: &Sender<Message>, peakers: &Peakers) {
-    if let ListResult::Item(sink_input) = info {
-        let client: Box<Client> = Box::new(sink_input.into());
+fn add_sink_input<C>(info: ListResult<C>, context: &Arc<Mutex<Option<Context>>>, sender: &Sender<Message>, peakers: &Peakers)
+where
+    C: Into<Client>
+{
+    if let ListResult::Item(info) = info {
+        let client: Box<Client> = Box::new(info.into());
+        let id = client.id;
+
         sender.emit(Message::New(client));
 
         if let Ok(Some(context)) = context.lock().as_deref_mut() {
-            if let Some(p) = create_peeker(context, sender, sink_input.index) {
+            if let Some(p) = create_peeker(context, sender, id) {
                 peakers.add(p)
             }
         }
@@ -163,6 +174,11 @@ fn peak_callback(stream: &mut Stream, sender: &Sender<Message>, i: u32) {
 }
 
 fn create_peeker(context: &mut Context, sender: &Sender<Message>, i: u32) -> Option<Pb<Stream>> {
+    // TODO: set_monitor_stream requires the real sink id, instead of 0,
+    // and needs to be destroyed/created if *default* device was changed.
+    // For now just don't create peaker that spams 0's.
+    if i == super::id::MASTER { return None }
+
     static PEAK_BUF_ATTR: &BufferAttr = &BufferAttr {
         maxlength: 0, tlength:   0,
         prebuf:    0, minreq:    0,
@@ -201,7 +217,7 @@ fn create_peeker(context: &mut Context, sender: &Sender<Message>, i: u32) -> Opt
     Some(stream)
 }
 
-fn subscribe_callback(sender: &Sender<Message>, context: &Arc<Mutex<Option<Context>>>, peakers: &Peakers, op: Option<Operation>, i: u32) {
+fn subscribe_callback(sender: &Sender<Message>, context: &Arc<Mutex<Option<Context>>>, peakers: &Peakers, facility: Option<Facility>, op: Option<Operation>, i: u32) {
     let Some(op) = op else { return };
 
     let introspect = {
@@ -210,6 +226,21 @@ fn subscribe_callback(sender: &Sender<Message>, context: &Arc<Mutex<Option<Conte
 
         context.introspect()
     };
+
+    if let Some(Facility::Sink) = facility {
+        introspect.get_sink_info_by_index(0, {
+            let sender = sender.clone();
+
+            move |info| {
+                if let ListResult::Item(info) = info {
+                    let client = Box::new(info.into());
+                    sender.emit(Message::Changed(client));
+                };
+            }
+        });
+
+        return
+    }
 
     match op {
         Operation::New => {
@@ -257,10 +288,10 @@ fn state_callback(context: &Arc<Mutex<Option<Context>>>, peakers: &Peakers, send
                 let context = context.clone();
                 let peakers = peakers.clone();
 
-                move |_, op, i| subscribe_callback(&sender, &context, &peakers, op, i)
+                move |facility, op, i| subscribe_callback(&sender, &context, &peakers, facility, op, i)
             });
 
-            let info_callback = {
+            let input_callback = {
                 let sender = sender.clone();
                 let peakers = peakers.clone();
                 let context = context.clone();
@@ -276,13 +307,25 @@ fn state_callback(context: &Arc<Mutex<Option<Context>>>, peakers: &Peakers, send
                 }
             };
 
+            let sink_callback = {
+                let sender = sender.clone();
+                let peakers = peakers.clone();
+                let context = context.clone();
+
+                move |info: ListResult<&SinkInfo>| {
+                    add_sink_input(info, &context, &sender, &peakers);
+                    sender.emit(Message::Ready);
+                }
+            };
+
             let mut lock = context.lock().unwrap();
             let Some(context) = lock.as_mut() else { return };
 
-            context.introspect().get_sink_input_info_list(info_callback);
+            context.introspect().get_sink_info_by_index(0, sink_callback);
+            context.introspect().get_sink_input_info_list(input_callback);
 
             context.set_subscribe_callback(Some(subscribe_callback));
-            context.subscribe(InterestMaskSet::SINK_INPUT, |_| ());
+            context.subscribe(InterestMaskSet::SINK_INPUT | InterestMaskSet::SINK, |_| ());
         },
         Failed => sender.emit(Message::Error(anyhow!("Pulse Audio: connection failed"))),
         Terminated => sender.emit(Message::Error(anyhow!("Pulse Audio: connection terminated"))),
@@ -308,6 +351,26 @@ impl <'a> From<&SinkInputInfo<'a>> for Client {
             volume: Volume::Pulse(sink_input.volume),
             max_volume: 2.55,
             muted: sink_input.mute,
+        }
+    }
+}
+
+impl <'a> From<&SinkInfo<'a>> for Client {
+    fn from(sink: &SinkInfo<'a>) -> Self {
+        let description = sink.active_port
+            .as_ref()
+            .and_then(|port| port.description.to_owned())
+            .unwrap_or_default()
+            .to_string();
+
+        Client {
+            id: super::id::MASTER,
+            name: "Master".to_owned(),
+            description,
+            icon: None,
+            volume: Volume::Pulse(sink.volume),
+            max_volume: 2.55,
+            muted: sink.mute,
         }
     }
 }

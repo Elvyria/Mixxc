@@ -25,6 +25,7 @@ pub struct App {
     server: Arc<AudioServerEnum>,
 
     max_volume: f64,
+    master: bool,
     sliders: Sliders,
 
     ready: Rc<Cell<bool>>,
@@ -87,6 +88,7 @@ pub struct Config {
     pub max_volume: f64,
     pub show_icons: bool,
     pub horizontal: bool,
+    pub master: bool,
 
     pub server: AudioServerEnum,
 }
@@ -411,6 +413,7 @@ impl Component for App {
         let model = App {
             server,
             max_volume: config.max_volume,
+            master: config.master,
             sliders: Sliders {
                 container: sliders,
                 direction,
@@ -489,6 +492,10 @@ impl Component for App {
                 self.sliders.send(id, SliderMessage::ServerPeak(peak));
             }
             New(client) => {
+                if client.id == server::id::MASTER && !self.master {
+                    return
+                }
+
                 let mut client = *client;
                 client.max_volume = f64::min(client.max_volume, self.max_volume);
 

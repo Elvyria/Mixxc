@@ -10,6 +10,10 @@ use relm4::Sender;
 use self::pipewire::Pipewire;
 use self::pulse::Pulse;
 
+pub mod id {
+    pub const MASTER: u32 = 0;
+}
+
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum Volume {
     Pulse(libpulse_binding::volume::ChannelVolumes),

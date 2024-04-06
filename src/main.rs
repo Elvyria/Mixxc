@@ -50,6 +50,10 @@ struct Args {
     #[argh(option, short = 'x', long = "max-volume")]
     max_volume: Option<u8>,
 
+    /// enable master volume
+    #[argh(switch, short = 'g', long = "master")]
+    master: bool,
+
     /// print version
     #[argh(switch, short = 'v')]
     version: bool,
@@ -101,6 +105,7 @@ fn main() -> Result<(), Error> {
         show_icons: args.icon,
         anchors,
         horizontal,
+        master: args.master,
 
         server: server::pulse::Pulse::new().into(),
     });
