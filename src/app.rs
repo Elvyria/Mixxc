@@ -200,7 +200,7 @@ impl FactoryComponent for Slider {
                     #[name(scale)] // 0.00004 is a rounding error
                     gtk::Scale::with_range(Orientation::Horizontal, 0.0, self.max + 0.00004, 0.005) {
                         #[track = "self.changed(Slider::volume())"]
-                        set_value: self.volume.get_linear(),
+                        set_value: self.volume.percent(),
                         set_slider_size_fixed: false,
                         set_show_fill_level: true,
                         set_restrict_to_fill_level: false,
@@ -300,7 +300,7 @@ impl FactoryComponent for Slider {
             .drop_on_shutdown()
         });
 
-        let volume_percent = (init.volume.get_linear() * 100.0) as u8;
+        let volume_percent = (init.volume.percent() * 100.0) as u8;
 
         Self {
             id: init.id,
@@ -339,10 +339,10 @@ impl FactoryComponent for Slider {
            },
            SliderMessage::ValueChange(v) => {
                if self.volume_percent != 0 {
-                   self.set_peak(self.peak * v / self.volume.get_linear())
+                   self.set_peak(self.peak * v / self.volume.percent())
                }
 
-               self.volume.set_linear(v);
+               self.volume.set_percent(v);
 
                let _ = sender.output(Message::VolumeChanged { id: self.id, volume: self.volume });
            },
@@ -354,7 +354,7 @@ impl FactoryComponent for Slider {
            }
            SliderMessage::ServerChange(client) => {
                self.set_volume(client.volume);
-               self.set_volume_percent((client.volume.get_linear() * 100.0) as u8);
+               self.set_volume_percent((client.volume.percent() * 100.0) as u8);
                self.set_muted(client.muted);
                self.set_name(client.name);
                self.set_description(client.description);

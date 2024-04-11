@@ -2,6 +2,8 @@
 pub mod pipewire;
 pub mod pulse;
 
+use std::fmt::Debug;
+
 use anyhow::Error;
 use enum_dispatch::enum_dispatch;
 use relm4::Sender;
@@ -14,32 +16,61 @@ pub mod id {
     pub const MASTER: u32 = 0;
 }
 
+#[derive(Clone, Copy)]
+pub struct Volume {
+    inner: RawVolume,
+    percent: &'static (dyn Fn(&RawVolume) -> f64 + Sync),
+    set_percent: &'static (dyn Fn(&mut RawVolume, f64) + Sync),
+}
+
+impl PartialEq for Volume {
+    fn eq(&self, other: &Self) -> bool {
+        self.inner == other.inner
+    }
+}
+
+impl Debug for Volume {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.inner.fmt(f)
+    }
+}
+
+impl Volume {
+    pub fn percent(&self) -> f64{
+        (self.percent)(&self.inner)
+    }
+
+    pub fn set_percent(&mut self, p: f64) {
+        (self.set_percent)(&mut self.inner, p)
+    }
+}
+
+impl RawVolume {
+    pub fn linear(&self) -> f64 {
+        match self {
+            RawVolume::Pulse(cv) => libpulse_binding::volume::VolumeLinear::from(cv.max()).0,
+            #[cfg(feature = "PipeWire")]
+            RawVolume::Pipewire  => unimplemented!(),
+        }
+    }
+
+    pub fn set_linear(&mut self, v: f64) {
+        match self {
+            RawVolume::Pulse(cv) => {
+                cv.set(cv.len(), libpulse_binding::volume::VolumeLinear(v).into())
+            },
+            #[cfg(feature = "PipeWire")]
+            RawVolume::Pipewire  => unimplemented!(),
+        };
+    }
+}
+
 #[derive(Clone, Copy, Debug, PartialEq)]
-pub enum Volume {
+enum RawVolume {
     Pulse(libpulse_binding::volume::ChannelVolumes),
 
     #[cfg(feature = "PipeWire")]
     Pipewire,
-}
-
-impl Volume {
-    pub fn set_linear(&mut self, v: f64) {
-        match self {
-            Volume::Pulse(cv) => {
-                cv.set(cv.len(), libpulse_binding::volume::VolumeLinear(v).into())
-            },
-            #[cfg(feature = "PipeWire")]
-            Volume::Pipewire  => unimplemented!(),
-        };
-    }
-
-    pub fn get_linear(&self) -> f64 {
-        match self {
-            Volume::Pulse(cv) => libpulse_binding::volume::VolumeLinear::from(cv.max()).0,
-            #[cfg(feature = "PipeWire")]
-            Volume::Pipewire  => unimplemented!(),
-        }
-    }
 }
 
 #[derive(Debug)]

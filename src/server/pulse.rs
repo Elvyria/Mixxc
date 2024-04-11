@@ -18,7 +18,7 @@ use libpulse_binding::proplist::properties::APPLICATION_NAME;
 use libpulse_binding::sample::{Format, Spec};
 use libpulse_binding::stream::{Stream, self, PeekResult};
 
-use super::{Message, Volume, AudioServer, Client};
+use super::{AudioServer, Client, Message, RawVolume, Volume};
 
 pub struct Pulse {
     context: Arc<Mutex<Option<Context>>>,
@@ -114,7 +114,7 @@ impl AudioServer for Pulse {
 
     fn set_volume(&self, id: u32, volume: Volume) {
         #[allow(irrefutable_let_patterns)]
-        let Volume::Pulse(cv) = volume else {
+        let RawVolume::Pulse(cv) = volume.inner else {
             return
         };
 
@@ -343,12 +343,18 @@ impl <'a> From<&SinkInputInfo<'a>> for Client {
         // static VOLUME_MAX: OnceLock<f64> = OnceLock::new();
         // let max = *VOLUME_MAX.get_or_init(|| VolumeLinear::from(libpulse_binding::volume::Volume::ui_max()).0);
 
+        let volume = Volume {
+            inner: RawVolume::Pulse(sink_input.volume),
+            percent: &RawVolume::linear,
+            set_percent: &RawVolume::set_linear,
+        };
+
         Client {
             id: sink_input.index,
             name,
             description,
             icon,
-            volume: Volume::Pulse(sink_input.volume),
+            volume,
             max_volume: 2.55,
             muted: sink_input.mute,
         }
@@ -363,12 +369,34 @@ impl <'a> From<&SinkInfo<'a>> for Client {
             .unwrap_or_default()
             .to_string();
 
+        let volume = Volume {
+            inner: RawVolume::Pulse(sink.volume),
+            percent: &|v: &RawVolume| {
+                use libpulse_binding::volume::Volume;
+
+                #[allow(irrefutable_let_patterns)]
+                if let RawVolume::Pulse(v) = v {
+                    return v.avg().0 as f64 / Volume::NORMAL.0 as f64
+                }
+
+                0.0
+            },
+            set_percent: &|v: &mut RawVolume, p: f64| {
+                use libpulse_binding::volume::Volume;
+
+                #[allow(irrefutable_let_patterns)]
+                if let RawVolume::Pulse(v) = v {
+                    v.set(v.len(), Volume((Volume::NORMAL.0 as f64 * p) as u32));
+                }
+            },
+        };
+
         Client {
             id: super::id::MASTER,
             name: "Master".to_owned(),
             description,
             icon: None,
-            volume: Volume::Pulse(sink.volume),
+            volume,
             max_volume: 2.55,
             muted: sink.mute,
         }
