@@ -10,7 +10,7 @@ use relm4::{ComponentParts, ComponentSender, Component, RelmWidgetExt, FactorySe
 use relm4::factory::FactoryVecDeque;
 use relm4::prelude::{DynamicIndex, FactoryComponent};
 
-use gtk::glib::{Cast, ControlFlow};
+use gtk::glib::{object::Cast, ControlFlow};
 use gtk::prelude::{ApplicationExt, GtkWindowExt, BoxExt, GestureSingleExt, OrientableExt, RangeExt, WidgetExt, WidgetExtManual};
 use gtk::pango::EllipsizeMode;
 use gtk::{Orientation, Align, Justification};

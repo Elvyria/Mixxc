@@ -2,9 +2,8 @@ use std::rc::Rc;
 
 use relm4::{gtk, Component};
 
-use gtk::prelude::{Cast, NativeExt, WidgetExt};
+use gtk::prelude::{Cast, NativeExt, WidgetExt, SurfaceExt};
 
-use gdk_x11::prelude::SurfaceExt;
 use gdk_x11::{X11Surface, X11Display};
 
 use x11rb::connection::Connection;
@@ -20,7 +19,9 @@ use crate::app::App;
 
 impl App where Self: Component {
     pub fn realize_x11(window: &<Self as Component>::Root, anchors: Anchor, margins: Vec<i32>) {
-        let Ok(xsurface) = window.surface().downcast::<X11Surface>() else {
+        let surface = window.surface().unwrap();
+
+        let Ok(xsurface) = surface.downcast::<X11Surface>() else {
             return
         };
 
@@ -51,7 +52,7 @@ impl App where Self: Component {
             }
         });
 
-        window.surface().connect_layout({
+        xsurface.connect_layout({
             move |_, width, height| {
                 let (x, y) = anchors.position(&margins,
                                               (screen.width, screen.height),
