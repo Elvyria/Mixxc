@@ -69,6 +69,12 @@ Print version information.
 .It Fl \-help
 Print help information.
 .El
+.Sh ENVIRONMENT
+.Bl -tag -width Ds
+.It Ev PULSE_PEAK_RATE
+Integer value that controls frequency at which audio server probes audio tracks for loudness in an allowed dynamic range.
+Setting this value to 0 significantly reduces number of window redraws and CPU usage.
+.El 
 .Sh FILES
 .Bl -compact -tag -width Ds
 .It Pa $XDG_CONFIG_HOME/mixxc/style.css
