@@ -30,6 +30,10 @@ struct Args {
     #[argh(option, short = 'm', long = "margin")]
     margins: Vec<i32>,
 
+    /// enable master volume slider
+    #[argh(switch, short = 'M', long = "master")]
+    master: bool,
+
     /// volume slider orientation: (h)orizontal, (v)ertical
     #[argh(option, short = 'b')]
     bar: Option<String>,
@@ -49,10 +53,6 @@ struct Args {
     /// max volume level in percent (default: 100; 1-255)
     #[argh(option, short = 'x', long = "max-volume")]
     max_volume: Option<u8>,
-
-    /// enable master volume
-    #[argh(switch, short = 'M', long = "master")]
-    master: bool,
 
     /// print version
     #[argh(switch, short = 'v')]

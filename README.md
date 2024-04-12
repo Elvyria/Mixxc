@@ -20,6 +20,7 @@ Options:
   -s, --spacing     spacing between clients
   -a, --anchor      screen anchor point: (t)op, (b)ottom, (l)eft, (r)ight
   -m, --margin      margin distance for each anchor point
+  -M, --master      enable master volume slider
   -b, --bar         volume slider orientation: (h)orizontal, (v)ertical
   -u, --userstyle   path to the userstyle
   -k, --keep        keep window open
