@@ -379,7 +379,7 @@ impl <'a> From<&SinkInfo<'a>> for Client {
                     return v.avg().0 as f64 / Volume::NORMAL.0 as f64
                 }
 
-                0.0
+                unreachable!()
             },
             set_percent: &|v: &mut RawVolume, p: f64| {
                 use libpulse_binding::volume::Volume;
