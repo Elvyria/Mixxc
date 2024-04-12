@@ -16,6 +16,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - (CSS) Icon wasn't affected by style changes in `default.css`, because class selector was invalid.
 - (CSS) Name and description used white color instead of the foreground.
 - Peakers will always start unmuted, in case something forced them to mute and state was saved by audio server.
+- Experimental fix for X when window flickers in the middle of the screen for a single frame on startup.
 
 ## [0.2.1] - 2024-03-22
 

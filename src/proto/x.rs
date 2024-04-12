@@ -37,25 +37,27 @@ impl App where Self: Component {
 
         set_wm_properties(conn.as_ref(), atoms, xid).expect("setting WM properties");
 
-        window.connect_map({
-            let conn = conn.clone();
-
-            move |_| add_wm_states(conn.as_ref(), atoms, xid).expect("updating _NET_WM_STATE")
-        });
-
         let screen_num = xdisplay.screen().screen_number() as u32;
         let screen = get_screen_size(conn.as_ref(), xid, screen_num).unwrap().reply().expect("collecting screen info");
 
-        window.surface().connect_layout({
+        window.connect_map({
             let conn = conn.clone();
 
+            move |_| { // Place window off-screen while initializing
+                let config = ConfigureWindowAux::new().x(screen.width as i32).y(screen.height as i32);
+                conn.configure_window(xid, &config).unwrap().check().expect("hiding window offscreen");
+
+                add_wm_states(conn.as_ref(), atoms, xid).expect("updating _NET_WM_STATE");
+            }
+        });
+
+        window.surface().connect_layout({
             move |_, width, height| {
                 let (x, y) = anchors.position(&margins,
                                               (screen.width, screen.height),
                                               (width as u32, height as u32));
 
                 let config = ConfigureWindowAux::new().x(x).y(y);
-
                 conn.configure_window(xid, &config).unwrap().check().expect("moving window with `xcb_configure_window`");
             }
         });
