@@ -26,6 +26,10 @@ struct Args {
     #[argh(option, short = 'a', long = "anchor")]
     anchors: Vec<String>,
 
+    /// show only active sinks
+    #[argh(switch, short = 'A', long = "active")]
+    active_only: bool,
+
     /// margin distance for each anchor point
     #[argh(option, short = 'm', long = "margin")]
     margins: Vec<i32>,
@@ -106,6 +110,7 @@ fn main() -> Result<(), Error> {
         anchors,
         horizontal,
         master: args.master,
+        show_corked: !args.active_only,
 
         server: server::pulse::Pulse::new().into(),
     });

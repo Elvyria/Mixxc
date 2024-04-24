@@ -357,6 +357,7 @@ impl <'a> From<&SinkInputInfo<'a>> for Client {
             volume,
             max_volume: 2.55,
             muted: sink_input.mute,
+            corked: sink_input.corked,
         }
     }
 }
@@ -399,6 +400,7 @@ impl <'a> From<&SinkInfo<'a>> for Client {
             volume,
             max_volume: 2.55,
             muted: sink.mute,
+            corked: false,
         }
     }
 }

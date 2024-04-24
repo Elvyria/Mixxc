@@ -18,6 +18,9 @@ use gtk::subclass::prelude::DerivedObjectProperties;
 pub struct SliderBox {
     #[property(get, set)]
     has_icons: Cell<bool>,
+
+    #[property(get, set)]
+    show_corked: Cell<bool>,
 }
 
 impl WidgetImpl for SliderBox {}

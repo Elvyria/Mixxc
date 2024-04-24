@@ -82,6 +82,7 @@ pub struct Client {
     pub volume: Volume,
     pub max_volume: f64,
     pub muted: bool,
+    pub corked: bool,
 }
 
 #[derive(Debug)]

@@ -89,6 +89,7 @@ pub struct Config {
     pub show_icons: bool,
     pub horizontal: bool,
     pub master: bool,
+    pub show_corked: bool,
 
     pub server: AudioServerEnum,
 }
@@ -100,6 +101,7 @@ struct Slider {
     volume: Volume,
     volume_percent: u8,
     muted: bool,
+    corked: bool,
     #[do_not_track]
     max: f64,
     name: String,
@@ -108,6 +110,7 @@ struct Slider {
     #[no_eq]
     peak: f64,
     removed: bool,
+    show_corked: bool,
 }
 
 #[derive(Debug)]
@@ -235,6 +238,11 @@ impl FactoryComponent for Slider {
         let parent = root.parent().expect("Slider has a parent")
             .downcast::<widgets::SliderBox>().expect("Slider parent is a SliderBox");
 
+        self.show_corked = parent.show_corked();
+        if !self.show_corked && self.corked {
+            root.hide();
+        }
+
         let widgets = view_output!();
 
         match parent.orientation() {
@@ -310,9 +318,12 @@ impl FactoryComponent for Slider {
             volume: init.volume,
             volume_percent,
             muted: init.muted,
+            corked: init.corked,
             max: init.max_volume,
             peak: 0.0,
             removed: false,
+
+            show_corked: false,
 
             tracker: 0,
         }
@@ -381,6 +392,7 @@ impl Component for App {
             slider_box -> widgets::SliderBox {
                 add_css_class:   "main",
                 set_has_icons:   config.show_icons,
+                set_show_corked: config.show_corked,
                 set_spacing:     config.spacing.map(i32::from).unwrap_or(20),
                 set_orientation: if config.horizontal {
                     Orientation::Horizontal
