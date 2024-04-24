@@ -165,6 +165,9 @@ impl FactoryComponent for Slider {
             add_css_class: "client",
             add_css_class: "new",
 
+            #[track = "self.changed(Slider::corked())"]
+            set_visible: self.show_corked || !self.corked,
+
             #[track = "self.changed(Slider::removed())"]
             set_class_active: ("removed", self.removed),
 
@@ -239,9 +242,6 @@ impl FactoryComponent for Slider {
             .downcast::<widgets::SliderBox>().expect("Slider parent is a SliderBox");
 
         self.show_corked = parent.show_corked();
-        if !self.show_corked && self.corked {
-            root.hide();
-        }
 
         let widgets = view_output!();
 
@@ -367,6 +367,7 @@ impl FactoryComponent for Slider {
                self.set_volume(client.volume);
                self.set_volume_percent((client.volume.percent() * 100.0) as u8);
                self.set_muted(client.muted);
+               self.set_corked(client.corked);
                self.set_name(client.name);
                self.set_description(client.description);
                self.set_icon(client_icon(client.icon, self.volume_percent, self.muted));
