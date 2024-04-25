@@ -7,10 +7,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## [Unreleased]
 
 ### Added
--- New flag `-A` `--active` that hides paused clients.
+- New flag `-A` `--active` that hides paused clients.
 
 ### Fixed
--- Excessive number of updates on unrelated client fields, caused by a function that lowers peak.
+- Excessive number of updates on unrelated client fields, caused by a function that lowers peak.
 
 ## [0.2.2] - 2024-04-13
 
