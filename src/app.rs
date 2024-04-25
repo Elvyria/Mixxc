@@ -330,6 +330,8 @@ impl FactoryComponent for Slider {
     }
 
     fn update_cmd(&mut self, cmd: Self::CommandOutput, _: FactorySender<Self>) {
+        self.reset();
+
         match cmd {
             SliderCommand::Peak => if self.peak > 0.0 {
                 self.set_peak((self.peak - 0.01).max(0.0));
