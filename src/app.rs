@@ -110,6 +110,7 @@ struct Slider {
     #[no_eq]
     peak: f64,
     removed: bool,
+    #[do_not_track]
     show_corked: bool,
 }
 
