@@ -268,7 +268,7 @@ impl FactoryComponent for Slider {
 
                 widgets.scale.set_hexpand(true);
             }
-            _ => panic!("Slider recieved an unknown orientation from parent"),
+            _ => unreachable!("Slider recieved an unknown orientation from parent"),
         }
 
         widgets.scale.connect_fill_level_notify({
