@@ -96,22 +96,18 @@ pub struct Config {
 
 #[tracker::track]
 struct Slider {
-    #[do_not_track]
-    id: u32,
+    #[do_not_track] id: u32,
     volume: Volume,
     volume_percent: u8,
     muted: bool,
     corked: bool,
-    #[do_not_track]
-    max: f64,
+    #[do_not_track] max: f64,
     name: String,
     description: String,
     icon: Cow<'static, str>,
-    #[no_eq]
-    peak: f64,
+    #[no_eq] peak: f64,
     removed: bool,
-    #[do_not_track]
-    show_corked: bool,
+    #[do_not_track] show_corked: bool,
 }
 
 #[derive(Debug)]
