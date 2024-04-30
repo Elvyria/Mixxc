@@ -57,7 +57,7 @@ impl RawVolume {
     pub fn set_linear(&mut self, v: f64) {
         match self {
             RawVolume::Pulse(cv) => {
-                cv.set(cv.len(), libpulse_binding::volume::VolumeLinear(v).into())
+                cv.scale(libpulse_binding::volume::VolumeLinear(v).into())
             },
             #[cfg(feature = "PipeWire")]
             RawVolume::Pipewire  => unimplemented!(),
