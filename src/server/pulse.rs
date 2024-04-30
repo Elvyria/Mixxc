@@ -377,7 +377,7 @@ impl <'a> From<&SinkInfo<'a>> for Client {
 
                 #[allow(irrefutable_let_patterns)]
                 if let RawVolume::Pulse(v) = v {
-                    return v.avg().0 as f64 / Volume::NORMAL.0 as f64
+                    return v.max().0 as f64 / Volume::NORMAL.0 as f64
                 }
 
                 unreachable!()
