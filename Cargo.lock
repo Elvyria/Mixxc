@@ -1211,6 +1211,7 @@ dependencies = [
  "gtk4-layer-shell",
  "libpulse-binding",
  "relm4",
+ "smallvec",
  "thiserror",
  "tokio",
  "tokio-util",

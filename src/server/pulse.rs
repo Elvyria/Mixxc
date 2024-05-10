@@ -18,7 +18,7 @@ use libpulse_binding::proplist::properties::APPLICATION_NAME;
 use libpulse_binding::sample::{Format, Spec};
 use libpulse_binding::stream::{Stream, self, PeekResult};
 
-use super::{AudioServer, Client, Message, RawVolume, Volume};
+use super::{AudioServer, Client, Message, Volume};
 
 pub struct Pulse {
     context: Arc<Mutex<Option<Context>>>,
@@ -113,10 +113,11 @@ impl AudioServer for Pulse {
     }
 
     fn set_volume(&self, id: u32, volume: Volume) {
-        #[allow(irrefutable_let_patterns)]
-        let RawVolume::Pulse(cv) = volume.inner else {
-            return
-        };
+        let mut cv = libpulse_binding::volume::ChannelVolumes::default();
+        cv.set_len(volume.inner.len() as u8);
+        cv.get_mut().copy_from_slice(unsafe {
+            std::mem::transmute::<&[u32], &[libpulse_binding::volume::Volume]>(&volume.inner)
+        });
 
         if let Ok(Some(context)) = self.context.lock().as_deref() {
             match id {
@@ -333,6 +334,34 @@ fn state_callback(context: &Arc<Mutex<Option<Context>>>, peakers: &Peakers, send
     }
 }
 
+impl Volume {
+    fn pulse_linear(&self) -> f64 {
+        use libpulse_binding::volume::{Volume, VolumeLinear};
+
+        let max = *self.inner.iter().max().unwrap_or(&0);
+        VolumeLinear::from(Volume(max)).0
+    }
+
+    fn set_pulse_linear(&mut self, v: f64) {
+        use libpulse_binding::volume::{Volume, VolumeLinear, ChannelVolumes};
+
+        let mut cv = ChannelVolumes::default();
+        cv.set_len(self.inner.len() as u8);
+        cv.get_mut().copy_from_slice(unsafe {
+            std::mem::transmute::<&[u32], &[Volume]>(&self.inner)
+        });
+
+        // TODO: Do scaling directly inside self.inner without helper methods to get rid of double copy
+        cv.scale(VolumeLinear(v).into());
+
+        let levels: &[u32] = unsafe {
+            std::mem::transmute::<&[Volume], &[u32]>(cv.get())
+        };
+
+        self.inner = smallvec::SmallVec::from_slice(&levels[..cv.len() as usize]);
+    }
+}
+
 impl <'a> From<&SinkInputInfo<'a>> for Client {
     fn from(sink_input: &SinkInputInfo<'a>) -> Self {
         let name = sink_input.proplist.get_str("application.name").unwrap_or_default();
@@ -344,9 +373,17 @@ impl <'a> From<&SinkInputInfo<'a>> for Client {
         // let max = *VOLUME_MAX.get_or_init(|| VolumeLinear::from(libpulse_binding::volume::Volume::ui_max()).0);
 
         let volume = Volume {
-            inner: RawVolume::Pulse(sink_input.volume),
-            percent: &RawVolume::linear,
-            set_percent: &RawVolume::set_linear,
+            inner: {
+                let levels: &[u32] = unsafe {
+                    use libpulse_binding::volume::Volume;
+
+                    std::mem::transmute::<&[Volume], &[u32]>(sink_input.volume.get())
+                };
+
+                smallvec::SmallVec::from_slice(&levels[..sink_input.volume.len() as usize])
+            },
+            percent: &Volume::pulse_linear,
+            set_percent: &Volume::set_pulse_linear,
         };
 
         Client {
@@ -371,24 +408,21 @@ impl <'a> From<&SinkInfo<'a>> for Client {
             .to_string();
 
         let volume = Volume {
-            inner: RawVolume::Pulse(sink.volume),
-            percent: &|v: &RawVolume| {
-                use libpulse_binding::volume::Volume;
+            inner: {
+                let levels: &[u32] = unsafe {
+                    use libpulse_binding::volume::Volume;
 
-                #[allow(irrefutable_let_patterns)]
-                if let RawVolume::Pulse(v) = v {
-                    return v.max().0 as f64 / Volume::NORMAL.0 as f64
-                }
-
-                unreachable!()
+                    std::mem::transmute::<&[Volume], &[u32]>(sink.volume.get())
+                };
+                smallvec::SmallVec::from_slice(&levels[..sink.volume.len() as usize])
             },
-            set_percent: &|v: &mut RawVolume, p: f64| {
+            percent: &|v: &Volume| {
                 use libpulse_binding::volume::Volume;
 
-                #[allow(irrefutable_let_patterns)]
-                if let RawVolume::Pulse(v) = v {
-                    v.set(v.len(), Volume((Volume::NORMAL.0 as f64 * p) as u32));
-                }
+                *v.inner.iter().max().unwrap() as f64 / Volume::NORMAL.0 as f64
+            },
+            set_percent: &|v: &mut Volume, p: f64| {
+                v.inner.fill((libpulse_binding::volume::Volume::NORMAL.0 as f64 * p) as u32);
             },
         };
 

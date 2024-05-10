@@ -354,7 +354,7 @@ impl FactoryComponent for Slider {
 
                self.volume.set_percent(v);
 
-               let _ = sender.output(Message::VolumeChanged { id: self.id, volume: self.volume });
+               let _ = sender.output(Message::VolumeChanged { id: self.id, volume: self.volume.clone() });
            },
            SliderMessage::Mute => {
                let _ = sender.output(Message::SetMute { id: self.id, flag: !self.muted });
@@ -363,8 +363,8 @@ impl FactoryComponent for Slider {
                self.set_removed(true);
            }
            SliderMessage::ServerChange(client) => {
-               self.set_volume(client.volume);
                self.set_volume_percent((client.volume.percent() * 100.0) as u8);
+               self.set_volume(client.volume);
                self.set_muted(client.muted);
                self.set_corked(client.corked);
                self.set_name(client.name);

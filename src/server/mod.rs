@@ -16,11 +16,11 @@ pub mod id {
     pub const MASTER: u32 = 0;
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone)]
 pub struct Volume {
-    inner: RawVolume,
-    percent: &'static (dyn Fn(&RawVolume) -> f64 + Sync),
-    set_percent: &'static (dyn Fn(&mut RawVolume, f64) + Sync),
+    inner: smallvec::SmallVec<[u32; 2]>,
+    percent: &'static (dyn Fn(&Self) -> f64 + Sync),
+    set_percent: &'static (dyn Fn(&mut Self, f64) + Sync),
 }
 
 impl PartialEq for Volume {
@@ -36,41 +36,13 @@ impl Debug for Volume {
 }
 
 impl Volume {
-    pub fn percent(&self) -> f64{
-        (self.percent)(&self.inner)
+    pub fn percent(&self) -> f64 {
+        (self.percent)(self)
     }
 
     pub fn set_percent(&mut self, p: f64) {
-        (self.set_percent)(&mut self.inner, p)
+        (self.set_percent)(self, p)
     }
-}
-
-impl RawVolume {
-    pub fn linear(&self) -> f64 {
-        match self {
-            RawVolume::Pulse(cv) => libpulse_binding::volume::VolumeLinear::from(cv.max()).0,
-            #[cfg(feature = "PipeWire")]
-            RawVolume::Pipewire  => unimplemented!(),
-        }
-    }
-
-    pub fn set_linear(&mut self, v: f64) {
-        match self {
-            RawVolume::Pulse(cv) => {
-                cv.scale(libpulse_binding::volume::VolumeLinear(v).into())
-            },
-            #[cfg(feature = "PipeWire")]
-            RawVolume::Pipewire  => unimplemented!(),
-        };
-    }
-}
-
-#[derive(Clone, Copy, Debug, PartialEq)]
-enum RawVolume {
-    Pulse(libpulse_binding::volume::ChannelVolumes),
-
-    #[cfg(feature = "PipeWire")]
-    Pipewire,
 }
 
 #[derive(Debug)]
