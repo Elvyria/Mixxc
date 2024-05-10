@@ -343,22 +343,16 @@ impl Volume {
     }
 
     fn set_pulse_linear(&mut self, v: f64) {
-        use libpulse_binding::volume::{Volume, VolumeLinear, ChannelVolumes};
+        use libpulse_binding::volume::{Volume, VolumeLinear};
 
-        let mut cv = ChannelVolumes::default();
-        cv.set_len(self.inner.len() as u8);
-        cv.get_mut().copy_from_slice(unsafe {
-            std::mem::transmute::<&[u32], &[Volume]>(&self.inner)
-        });
+        let v = Volume::from(VolumeLinear(v)).0;
+        let max = *self.inner.iter().max().unwrap();
 
-        // TODO: Do scaling directly inside self.inner without helper methods to get rid of double copy
-        cv.scale(VolumeLinear(v).into());
-
-        let levels: &[u32] = unsafe {
-            std::mem::transmute::<&[Volume], &[u32]>(cv.get())
-        };
-
-        self.inner = smallvec::SmallVec::from_slice(&levels[..cv.len() as usize]);
+        if max > Volume::MUTED.0 {
+            self.inner.iter_mut()
+                .for_each(|i| *i = ((*i as u64 * v as u64 / max as u64) as u32).clamp(Volume::MUTED.0, Volume::MAX.0));
+        }
+        else { self.inner.fill(v); }
     }
 }
 
