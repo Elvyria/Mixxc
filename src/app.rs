@@ -108,6 +108,7 @@ struct Slider {
     #[no_eq] peak: f64,
     removed: bool,
     #[do_not_track] show_corked: bool,
+    #[do_not_track] corking: bool,
 }
 
 #[derive(Debug)]
@@ -131,6 +132,7 @@ pub enum SliderMessage {
 #[derive(Debug)]
 pub enum SliderCommand {
     Peak,
+    Cork,
 }
 
 fn client_icon(icon: Option<String>, volume_percent: u8, muted: bool) -> Cow<'static, str> {
@@ -322,6 +324,8 @@ impl FactoryComponent for Slider {
 
             show_corked: false,
 
+            corking: false,
+
             tracker: 0,
         }
     }
@@ -333,6 +337,10 @@ impl FactoryComponent for Slider {
             SliderCommand::Peak => if self.peak > 0.0 {
                 self.set_peak((self.peak - 0.01).max(0.0));
             },
+            SliderCommand::Cork => if self.corking {
+                self.corking = false;
+                self.set_corked(!self.corked);
+            }
         }
     }
 
@@ -366,10 +374,20 @@ impl FactoryComponent for Slider {
                self.set_volume_percent((client.volume.percent() * 100.0) as u8);
                self.set_volume(client.volume);
                self.set_muted(client.muted);
-               self.set_corked(client.corked);
                self.set_name(client.name);
                self.set_description(client.description);
                self.set_icon(client_icon(client.icon, self.volume_percent, self.muted));
+
+               if !self.show_corked && client.id != server::id::MASTER {
+                   if !self.corking && (client.corked != self.corked) {
+                       sender.oneshot_command(async move {
+                           tokio::time::sleep(Duration::from_millis(45)).await;
+                           SliderCommand::Cork
+                       })
+                   }
+
+                   self.corking = client.corked != self.corked;
+               }
            },
        }
     }
