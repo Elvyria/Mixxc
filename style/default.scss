@@ -2,7 +2,7 @@
 
 /* https://docs.gtk.org/gtk4/css-properties.html */
 $bg:     #161616;
-$fg:     #FFFFFF;
+$fg:     #DDDDDD;
 $accent: #684EFF;
 
 * {
@@ -60,6 +60,12 @@ window {
 				border-radius: 2px;
 
 				background-color: $accent;
+				transition-duration: 400ms;
+			}
+
+			slider:hover {
+				/* Slider Knob */
+				background-color: shade($accent, 1.1);
 			}
 
 			highlight {
@@ -82,6 +88,14 @@ window {
 
 				margin: 0px;
 			}
+		}
+	}
+
+	scale:active
+		trough slider {
+			/* Slider Knob */
+			background-color: shade($accent, 1.1);
+			transform: scale(1.1);
 		}
 	}
 

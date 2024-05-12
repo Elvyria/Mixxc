@@ -2,7 +2,7 @@
 
 /* https://docs.gtk.org/gtk4/css-properties.html */
 @define-color bg     #161616;
-@define-color fg     #FFFFFF;
+@define-color fg     #DDDDDD;
 @define-color accent #684EFF;
 
 * {
@@ -61,6 +61,18 @@ window {
 	border-radius: 2px;
 
 	background: @accent;
+	transition-duration: 400ms;
+}
+
+/* Slider Knob */
+.client scale > trough > slider:hover {
+	background-color: shade(@accent, 1.1);
+}
+
+/* Slider Knob */
+.client:active scale > trough > slider {
+	background-color: shade(@accent, 1.1);
+	transform: scale(1.1);
 }
 
 /* Slider Bar Filled */

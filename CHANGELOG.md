@@ -8,9 +8,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 - New flag `-A` `--active` that hides paused clients.
+- (CSS) Default style now has an animation when hovering over or clicking a volume knob.
 
 ### Fixed
 - Excessive number of updates on unrelated client fields, caused by a function that lowers peak.
+
+### Changed
+- (CSS) Default foreground color is now less eye burning. (#FFFFFF -> #DDDDDD)
 
 ## [0.2.2] - 2024-04-13
 
