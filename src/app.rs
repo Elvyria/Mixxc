@@ -363,7 +363,7 @@ impl FactoryComponent for Slider {
            },
            SliderMessage::ValueChange(v) => {
                if self.volume_percent != 0 {
-                   self.set_peak(self.peak * v / self.volume.percent())
+                   self.set_peak(100.0 * self.peak * v / self.volume_percent as f64);
                }
 
                self.volume.set_percent(v);
