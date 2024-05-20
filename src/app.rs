@@ -18,8 +18,8 @@ use gtk::{Orientation, Align, Justification};
 use tokio_util::sync::CancellationToken;
 
 use crate::anchor::Anchor;
-use crate::{label, widgets};
-use crate::server::{AudioServerEnum, AudioServer, self, Volume, Client};
+use crate::widgets;
+use crate::server::{self, AudioServer, AudioServerEnum, Client, Kind, Volume};
 
 pub struct App {
     server: Arc<AudioServerEnum>,
@@ -65,6 +65,10 @@ impl Sliders {
         sliders.drop();
     }
 
+    fn clear(&mut self) {
+        self.container.guard().clear();
+    }
+
     fn contains(&self, id: u32) -> bool {
         self.container.borrow()
             .iter()
@@ -108,13 +112,14 @@ struct Slider {
     #[no_eq] peak: f64,
     removed: bool,
     #[do_not_track] show_corked: bool,
+    #[do_not_track] kind: server::Kind,
     #[do_not_track] corking: bool,
 }
 
 #[derive(Debug)]
 pub enum Message {
-    SetMute { id: u32, flag: bool },
-    VolumeChanged { id: u32, volume: Volume, },
+    SetMute { id: u32, kind: server::Kind, flag: bool },
+    VolumeChanged { id: u32, kind: server::Kind, volume: Volume, },
     Remove { id: u32 },
     InterruptClose,
     Close
@@ -321,6 +326,7 @@ impl FactoryComponent for Slider {
             max: init.max_volume,
             peak: 0.0,
             removed: false,
+            kind: init.kind,
 
             show_corked: false,
 
@@ -362,10 +368,10 @@ impl FactoryComponent for Slider {
 
                self.volume.set_percent(v);
 
-               let _ = sender.output(Message::VolumeChanged { id: self.id, volume: self.volume.clone() });
+               let _ = sender.output(Message::VolumeChanged { id: self.id, kind: self.kind, volume: self.volume.clone() });
            },
            SliderMessage::Mute => {
-               let _ = sender.output(Message::SetMute { id: self.id, flag: !self.muted });
+               let _ = sender.output(Message::SetMute { id: self.id, kind: self.kind, flag: !self.muted });
            },
            SliderMessage::Removed => {
                self.set_removed(true);
@@ -378,16 +384,14 @@ impl FactoryComponent for Slider {
                self.set_description(client.description);
                self.set_icon(client_icon(client.icon, self.volume_percent, self.muted));
 
-               if !self.show_corked && client.id != server::id::MASTER {
-                   if !self.corking && (client.corked != self.corked) {
-                       sender.oneshot_command(async move {
-                           tokio::time::sleep(Duration::from_millis(45)).await;
-                           SliderCommand::Cork
-                       })
-                   }
-
-                   self.corking = client.corked != self.corked;
+               if !self.corking && (client.corked != self.corked) {
+                   sender.oneshot_command(async move {
+                       tokio::time::sleep(Duration::from_millis(45)).await;
+                       SliderCommand::Cork
+                   })
                }
+
+               self.corking = client.corked != self.corked;
            },
        }
     }
@@ -427,7 +431,11 @@ impl Component for App {
         sender.spawn_command({
             let server = server.clone();
 
-            move |sender| server.connect(sender)
+            move |sender| {
+                while let Err(e) = server.connect(sender.clone()) {
+                    eprintln!("{e}");
+                }
+            }
         });
 
         let sliders = FactoryVecDeque::builder()
@@ -522,10 +530,6 @@ impl Component for App {
                 self.sliders.send(id, SliderMessage::ServerPeak(peak));
             }
             New(client) => {
-                if client.id == server::id::MASTER && !self.master {
-                    return
-                }
-
                 let mut client = *client;
                 client.max_volume = f64::min(client.max_volume, self.max_volume);
 
@@ -557,17 +561,25 @@ impl Component for App {
                 self.sliders.send(client.id, SliderMessage::ServerChange(client));
             }
             Ready => if !self.ready.replace(true) {
+                let mut plan = Kind::Software
+                        .union(Kind::Out);
+
+                let sender = sender.command_sender();
+
+                if self.master {
+                    plan |= Kind::Hardware; 
+                    self.server.request_master(sender.clone()).unwrap();
+                }
+
+                self.server.request_software(sender.clone()).unwrap();
+                self.server.subscribe(plan, sender.clone()).unwrap();
+
                 window.set_visible(true);
             }
-            Error(e) => eprintln!("{}: Audio Server :{e}", label::ERROR),
+            Error(e) => eprintln!("{e}"),
             Disconnected(Some(e)) => {
-                eprintln!("{}: Audio Server :{e}", label::ERROR);
-
-                sender.spawn_command({
-                    let server = self.server.clone();
-
-                    move |sender| server.connect(sender) 
-                });
+                self.ready.replace(false);
+                self.sliders.clear();
             }
             Disconnected(None) => relm4::main_application().quit(),
             Quit => {
@@ -581,14 +593,14 @@ impl Component for App {
         use Message::*;
 
         match message {
-            VolumeChanged { id, volume } => {
-                self.server.set_volume(id, volume);
+            VolumeChanged { id, kind, volume } => {
+                self.server.set_volume(id, kind, volume);
             },
             Remove { id } => {
                 self.sliders.remove(id);
             }
-            SetMute { id, flag } => {
-                self.server.set_mute(id, flag);
+            SetMute { id, kind, flag } => {
+                self.server.set_mute(id, kind, flag);
             }
             InterruptClose => {
                 if let Some(shutdown) = self.shutdown.take() {

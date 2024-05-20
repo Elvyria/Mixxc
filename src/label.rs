@@ -16,3 +16,5 @@ pub const SASS: &str = cstr!("<g>Sass</>");
 
 #[cfg(feature = "Wayland")]
 pub const LAYER_SHELL_PROTOCOL: &str = cstr!("<g>zwlr_layer_shell_v1</>");
+
+pub const PULSE: &str = cstr!("<g>Pulse Audio</>");

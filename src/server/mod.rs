@@ -1,20 +1,18 @@
 #[cfg(feature = "PipeWire")]
 pub mod pipewire;
 pub mod pulse;
+pub mod error;
 
 use std::fmt::Debug;
 
-use anyhow::Error;
 use enum_dispatch::enum_dispatch;
 use relm4::Sender;
+
+use error::Error;
 
 #[cfg(feature = "PipeWire")]
 use self::pipewire::Pipewire;
 use self::pulse::Pulse;
-
-pub mod id {
-    pub const MASTER: u32 = 0;
-}
 
 #[derive(Clone)]
 pub struct Volume {
@@ -55,6 +53,7 @@ pub struct Client {
     pub max_volume: f64,
     pub muted: bool,
     pub corked: bool,
+    pub kind: Kind,
 }
 
 #[derive(Debug)]
@@ -76,10 +75,23 @@ pub enum AudioServerEnum {
     Pipewire,
 }
 
+bitflags::bitflags! {
+    #[derive(Debug, Clone, Copy)]
+    pub struct Kind: u8 {
+        const Software = 0b0001;
+        const Hardware = 0b0010;
+        const Out      = 0b0100;
+        const In       = 0b1000;
+    }
+}
+
 #[enum_dispatch(AudioServerEnum)]
 pub trait AudioServer {
-    fn connect(&self, sender: Sender<Message>);
+    fn connect(&self, sender: Sender<Message>) -> Result<(), Error>;
     fn disconnect(&self);
-    fn set_volume(&self, id: u32, volume: Volume);
-    fn set_mute(&self, id: u32, flag: bool);
+    fn request_software(&self, sender: Sender<Message>) -> Result<(), Error>;
+    fn request_master(&self, sender: Sender<Message>) -> Result<(), Error>;
+    fn subscribe(&self, plan: Kind, sender: Sender<Message>) -> Result<(), Error>;
+    fn set_volume(&self, id: u32, kind: Kind, volume: Volume);
+    fn set_mute(&self, id: u32, kind: Kind, flag: bool);
 }

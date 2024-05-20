@@ -4,21 +4,20 @@ use std::pin::Pin;
 use std::rc::Rc;
 use std::sync::{Mutex, Arc, OnceLock};
 
-use anyhow::anyhow;
+use libpulse_binding::context;
 use relm4::Sender;
 
 use libpulse_binding::callbacks::ListResult;
-use libpulse_binding::context::introspect::{SinkInfo, SinkInputInfo};
-use libpulse_binding::context::subscribe::{Facility, InterestMaskSet, Operation};
-use libpulse_binding::context::{Context, FlagSet};
+use libpulse_binding::context::{introspect::{SinkInfo, SinkInputInfo}, subscribe::{Facility, InterestMaskSet, Operation}, Context};
 use libpulse_binding::def::BufferAttr;
 use libpulse_binding::mainloop::standard::{Mainloop, IterateResult};
-use libpulse_binding::proplist::Proplist;
-use libpulse_binding::proplist::properties::APPLICATION_NAME;
+use libpulse_binding::proplist::{properties::APPLICATION_NAME, Proplist};
 use libpulse_binding::sample::{Format, Spec};
 use libpulse_binding::stream::{Stream, self, PeekResult};
 
-use super::{AudioServer, Client, Message, Volume};
+use super::error::{Error, PulseError};
+
+use super::{AudioServer, Client, Kind, Message, Volume};
 
 pub struct Pulse {
     context: Arc<Mutex<Option<Context>>>,
@@ -44,6 +43,7 @@ impl Peakers {
         if let Some(pos) = peakers.iter().position(|stream| stream.get_index() == Some(i)) {
             let stream = peakers.get_mut(pos).unwrap();
             stream.set_read_callback(None);
+
             peakers.remove(pos);
         }
     }
@@ -59,7 +59,7 @@ impl Pulse {
 }
 
 impl AudioServer for Pulse {
-    fn connect(&self, sender: Sender<Message>) {
+    fn connect(&self, sender: Sender<Message>) -> Result<(), Error> {
         let mut proplist = Proplist::new().unwrap();
         proplist.set_str(APPLICATION_NAME, crate::APP_NAME).unwrap();
 
@@ -75,31 +75,41 @@ impl AudioServer for Pulse {
         let state_callback = Box::new({
             let context = self.context.clone();
             let sender = sender.clone();
-            let peakers = self.peakers.clone();
 
-            move || state_callback(&context, &peakers, &sender)
+            move || state_callback(&context, &sender)
         });
 
         {
-            let mut lock = self.context.lock().unwrap();
+            let mut lock = self.context.try_lock().unwrap();
             let context = lock.as_mut().unwrap();
 
             context.set_state_callback(Some(state_callback));
-            context.connect(None, FlagSet::NOAUTOSPAWN, None).unwrap();
+
+            context.connect(None, context::FlagSet::NOAUTOSPAWN, None)
+                .map_err(PulseError::from)?;
         }
 
         loop {
             match mainloop.iterate(true) {
                 IterateResult::Success(_) => {},
                 IterateResult::Err(e) => {
-                    sender.emit(Message::Error(anyhow!("Pulse Audio: {e}")))
+                    let e: Error = PulseError::from(e).into();
+                    sender.emit(Message::Error(e));
                 }
                 IterateResult::Quit(_) => break,
             }
         }
 
-        self.disconnect();
+        (*self.peakers.0).borrow_mut().clear();
+
+        self.context.lock()
+            .as_deref_mut()
+            .map(Option::take)
+            .unwrap();
+
         sender.emit(Message::Disconnected(None));
+
+        Ok(())
     }
 
     fn disconnect(&self) {
@@ -107,31 +117,114 @@ impl AudioServer for Pulse {
             return
         };
 
-        if let Some(mut context) = lock.take() {
-            context.disconnect();
+        match lock.take() {
+            Some(mut context) => {
+                context.disconnect();
+            }
+            None => {
+                (*self.peakers.0).borrow_mut().clear();
+            },
         }
     }
 
-    fn set_volume(&self, id: u32, volume: Volume) {
+    fn request_software(&self, sender: Sender<Message>) -> Result<(), Error> {
+        let input_callback = {
+            let peakers = self.peakers.clone();
+            let context = self.context.clone();
+
+            move |info: ListResult<&SinkInputInfo>| {
+                add_sink_input(info, &context, &sender, &peakers);
+            }
+        };
+
+        match self.context.lock().as_deref_mut() {
+            Ok(Some(context)) => {
+                context.introspect().get_sink_input_info_list(input_callback);
+
+                Ok(())
+            }
+            _ => Err(PulseError::Context.into()),
+        }
+    }
+
+    fn request_master(&self, sender: Sender<Message>) -> Result<(), Error> {
+        let sink_callback = {
+            let peakers = self.peakers.clone();
+            let context = self.context.clone();
+
+            move |info: ListResult<&SinkInfo>| {
+                add_sink_input(info, &context, &sender, &peakers);
+            }
+        };
+
+        match self.context.lock().as_deref_mut() {
+            Ok(Some(context)) => {
+                context.introspect().get_sink_info_by_index(0, sink_callback);
+
+                Ok(())
+            }
+            _ => Err(PulseError::Context.into()),
+        }
+    }
+
+    fn subscribe(&self, plan: Kind, sender: Sender<Message>) -> Result<(), Error> {
+        let subscribe_callback = Box::new({
+            let sender = sender.clone();
+            let context = self.context.clone();
+            let peakers = self.peakers.clone();
+
+            move |facility, op, i| subscribe_callback(&sender, &context, &peakers, facility, op, i)
+        });
+
+        let mut mask = InterestMaskSet::NULL;
+        if plan.contains(Kind::Software) { mask |= InterestMaskSet::SINK_INPUT; }
+        if plan.contains(Kind::Hardware) { mask |= InterestMaskSet::SINK;       }
+
+        match self.context.lock().as_deref_mut() {
+            Ok(Some(context)) => {
+                context.set_subscribe_callback(Some(subscribe_callback));
+                context.subscribe(mask, |_| ());
+
+                Ok(())
+            }
+            _ => Err(PulseError::Context.into()),
+        }
+    }
+
+    fn set_volume(&self, id: u32, kind: Kind, volume: Volume) {
         let mut cv = libpulse_binding::volume::ChannelVolumes::default();
         cv.set_len(volume.inner.len() as u8);
         cv.get_mut().copy_from_slice(unsafe {
             std::mem::transmute::<&[u32], &[libpulse_binding::volume::Volume]>(&volume.inner)
         });
 
-        if let Ok(Some(context)) = self.context.lock().as_deref() {
-            match id {
-                super::id::MASTER => context.introspect().set_sink_volume_by_index(0, &cv, None),
-                _ => context.introspect().set_sink_input_volume(id, &cv, None),
+        if let Ok(Some(context)) = self.context.try_lock().as_deref() {
+            let mut introspect = context.introspect();
+
+            match kind {
+                k if k.contains(Kind::Out | Kind::Software) => {
+                    introspect.set_sink_input_volume(id, &cv, None);
+                },
+                k if k.contains(Kind::Out | Kind::Hardware) => {
+                    introspect.set_sink_volume_by_index(id, &cv, None);
+                },
+                _ => {}
             };
         }
     }
 
-    fn set_mute(&self, id: u32, flag: bool) {
-        if let Ok(Some(context)) = self.context.lock().as_deref() {
-            match id {
-                super::id::MASTER => context.introspect().set_sink_mute_by_index(0, flag, None),
-                _ => context.introspect().set_sink_input_mute(id, flag, None),
+    fn set_mute(&self, id: u32, kind: Kind, flag: bool) {
+        if let Ok(Some(context)) = self.context.try_lock().as_deref() {
+            let mut introspect = context.introspect();
+
+            match kind {
+                k if k.contains(Kind::Out | Kind::Software) => {
+                    introspect.set_sink_input_mute(id, flag, None);
+                },
+                k if k.contains(Kind::Out | Kind::Hardware) => {
+                    introspect.set_sink_mute_by_index(id, flag, None);
+                },
+                _ => {}
             };
         }
     }
@@ -155,17 +248,13 @@ where
     }
 }
 
-const FRAG_SIZE: u32 = 4;
-
 fn peak_callback(stream: &mut Stream, sender: &Sender<Message>, i: u32) {
     match stream.peek() {
         Ok(PeekResult::Data(b)) => {
-            #[allow(clippy::assertions_on_constants)]
-            const _: () = debug_assert!(FRAG_SIZE == 4);
+            let bytes: [u8; 4] = unsafe { b.try_into().unwrap_unchecked() };
+            let peak: f32 = f32::from_ne_bytes(bytes);
 
-            let peak: f32 = unsafe { *(b.as_ptr() as *const _) };
-
-            sender.emit(Message::Peak(i, peak));
+            if peak != 0.0 { sender.emit(Message::Peak(i, peak)); }
         }
         Ok(PeekResult::Hole(_)) => {},
         _ => return,
@@ -175,40 +264,47 @@ fn peak_callback(stream: &mut Stream, sender: &Sender<Message>, i: u32) {
 }
 
 fn create_peeker(context: &mut Context, sender: &Sender<Message>, i: u32) -> Option<Pb<Stream>> {
+    use stream::FlagSet;
+
     // TODO: set_monitor_stream requires the real sink id, instead of 0,
     // and needs to be destroyed/created if *default* device was changed.
     // For now just don't create peaker that spams 0's.
-    if i == super::id::MASTER { return None }
+    if i == 0 { return None }
 
-    static PEAK_BUF_ATTR: &BufferAttr = &BufferAttr {
+    const PEAK_BUF_ATTR: &BufferAttr = &BufferAttr {
         maxlength: 0, tlength:   0,
         prebuf:    0, minreq:    0,
-        fragsize:  FRAG_SIZE,
+        fragsize:  std::mem::size_of::<f32>() as u32,
     };
 
-    let mut peak_spec = Spec {
-        channels: 1,
-        format:   Format::F32le,
-        rate:     0,
-    };
+    static PEAK_SPEC: OnceLock<Spec> = OnceLock::new();
 
-    static PEAK_RATE: OnceLock<u32> = OnceLock::new();
-    peak_spec.rate = *PEAK_RATE.get_or_init(|| {
-        std::env::var("PULSE_PEAK_RATE").ok().and_then(|s| s.parse().ok()).unwrap_or(30)
+    let spec = PEAK_SPEC.get_or_init(|| {
+        Spec {
+            channels: 1,
+            format:   Format::FLOAT32NE,
+            rate:     {
+                std::env::var("PULSE_PEAK_RATE").ok()
+                    .and_then(|s| s.parse::<u32>().ok())
+                    .unwrap_or(30)
+            }
+        }
     });
 
-    let mut stream = Stream::new(context, "Sink Input Peaker", &peak_spec, None)?;
+    let mut stream = Stream::new(context, "Mixxc Peaker", spec, None)?;
+    stream.set_monitor_stream(i).ok()?;
 
-    let flags: stream::FlagSet = stream::FlagSet::PEAK_DETECT | stream::FlagSet::ADJUST_LATENCY | stream::FlagSet::START_UNMUTED;
+    const FLAGS: FlagSet = FlagSet::PEAK_DETECT
+            .union(FlagSet::ADJUST_LATENCY)
+            .union(FlagSet::START_UNMUTED);
 
-    stream.set_monitor_stream(i).unwrap();
-    stream.connect_record(None, Some(PEAK_BUF_ATTR), flags).unwrap();
+    stream.connect_record(None, Some(PEAK_BUF_ATTR), FLAGS).ok()?;
 
     let mut stream = Box::pin(stream);
 
     let peak_callback = Box::new({
         let sender = sender.clone();
-        let stream: &mut Stream = unsafe { &mut *(stream.as_mut().get_mut() as *mut _) };
+        let stream: &mut Stream = unsafe { &mut *(stream.as_mut().get_mut() as *mut Stream) };
 
         move |_| peak_callback(stream, &sender, i)
     });
@@ -221,11 +317,9 @@ fn create_peeker(context: &mut Context, sender: &Sender<Message>, i: u32) -> Opt
 fn subscribe_callback(sender: &Sender<Message>, context: &Arc<Mutex<Option<Context>>>, peakers: &Peakers, facility: Option<Facility>, op: Option<Operation>, i: u32) {
     let Some(op) = op else { return };
 
-    let introspect = {
-        let context = context.lock().unwrap();
-        let Some(context) = context.as_ref() else { return };
-
-        context.introspect()
+    let introspect = match context.lock().as_deref() {
+        Ok(Some(context)) => context.introspect(),
+        _ => return,
     };
 
     if let Some(Facility::Sink) = facility {
@@ -254,8 +348,8 @@ fn subscribe_callback(sender: &Sender<Message>, context: &Arc<Mutex<Option<Conte
             });
         },
         Operation::Removed => {
-            sender.emit(Message::Removed(i));
             peakers.remove(i);
+            sender.emit(Message::Removed(i));
         },
         Operation::Changed => {
             introspect.get_sink_input_info(i, {
@@ -272,65 +366,14 @@ fn subscribe_callback(sender: &Sender<Message>, context: &Arc<Mutex<Option<Conte
     }
 }
 
-fn state_callback(context: &Arc<Mutex<Option<Context>>>, peakers: &Peakers, sender: &Sender<Message>) {
+fn state_callback(context: &Arc<Mutex<Option<Context>>>, sender: &Sender<Message>) {
     use libpulse_binding::context::State::*;
 
-    let Some(state) =
-        context.try_lock()
-        .ok()
-        .and_then(|lock| lock.as_ref().map(Context::get_state)) else {
-        return
-    };
-
-    match state {
-        Ready => {
-            let subscribe_callback = Box::new({
-                let sender = sender.clone();
-                let context = context.clone();
-                let peakers = peakers.clone();
-
-                move |facility, op, i| subscribe_callback(&sender, &context, &peakers, facility, op, i)
-            });
-
-            let input_callback = {
-                let sender = sender.clone();
-                let peakers = peakers.clone();
-                let context = context.clone();
-
-                let mut ready = false;
-
-                move |info: ListResult<&SinkInputInfo>| {
-                    add_sink_input(info, &context, &sender, &peakers);
-
-                    if !ready {
-                        ready = sender.send(Message::Ready).is_ok();
-                    }
-                }
-            };
-
-            let sink_callback = {
-                let sender = sender.clone();
-                let peakers = peakers.clone();
-                let context = context.clone();
-
-                move |info: ListResult<&SinkInfo>| {
-                    add_sink_input(info, &context, &sender, &peakers);
-                    sender.emit(Message::Ready);
-                }
-            };
-
-            let mut lock = context.lock().unwrap();
-            let Some(context) = lock.as_mut() else { return };
-
-            context.introspect().get_sink_info_by_index(0, sink_callback);
-            context.introspect().get_sink_input_info_list(input_callback);
-
-            context.set_subscribe_callback(Some(subscribe_callback));
-            context.subscribe(InterestMaskSet::SINK_INPUT | InterestMaskSet::SINK, |_| ());
-        },
-        Failed => sender.emit(Message::Error(anyhow!("Pulse Audio: connection failed"))),
-        Terminated => sender.emit(Message::Error(anyhow!("Pulse Audio: connection terminated"))),
-        _ => {},
+    // Never attempt to use Mutex::lock here, it will deadlock while connecting.
+    if let Ok(Some(context)) = context.try_lock().as_deref_mut() {
+        if let Ready = context.get_state() {
+            sender.emit(Message::Ready)
+        }
     }
 }
 
@@ -389,6 +432,7 @@ impl <'a> From<&SinkInputInfo<'a>> for Client {
             max_volume: 2.55,
             muted: sink_input.mute,
             corked: sink_input.corked,
+            kind: Kind::Out | Kind::Software,
         }
     }
 }
@@ -421,7 +465,7 @@ impl <'a> From<&SinkInfo<'a>> for Client {
         };
 
         Client {
-            id: super::id::MASTER,
+            id: 0,
             name: "Master".to_owned(),
             description,
             icon: None,
@@ -429,6 +473,7 @@ impl <'a> From<&SinkInfo<'a>> for Client {
             max_volume: 2.55,
             muted: sink.mute,
             corked: false,
+            kind: Kind::Out | Kind::Hardware,
         }
     }
 }

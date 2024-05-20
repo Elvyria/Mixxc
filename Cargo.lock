@@ -1201,7 +1201,6 @@ dependencies = [
 name = "mixxc"
 version = "0.2.2"
 dependencies = [
- "anyhow",
  "argh",
  "bitflags 2.5.0",
  "color-print",
@@ -1210,6 +1209,7 @@ dependencies = [
  "grass_compiler",
  "gtk4-layer-shell",
  "libpulse-binding",
+ "num-traits",
  "relm4",
  "smallvec",
  "thiserror",

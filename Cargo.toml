@@ -15,7 +15,6 @@ PipeWire = []
 Accent = ["dep:zbus"]
 
 [dependencies]
-anyhow = "1.0"
 thiserror = "1.0"
 argh = "0.1"
 bitflags = "2.5"
@@ -26,6 +25,7 @@ grass = { version = "0.13", package = "grass_compiler", optional = true }
 color-print = "0.3.5"
 tokio-util = "0.7.10"
 smallvec = "1.13"
+num-traits = "0.2"
 
 [dependencies.tokio]
 version = "1.37"
