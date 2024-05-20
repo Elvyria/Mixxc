@@ -167,10 +167,12 @@ impl FactoryComponent for Slider {
     view! {
         root = gtk::Box {
             add_css_class: "client",
-            add_css_class: "new",
 
             #[track = "self.changed(Slider::corked())"]
             set_visible: self.show_corked || !self.corked,
+
+            #[track = "self.changed(Slider::removed())"]
+            set_class_active: ("new", !self.removed),
 
             #[track = "self.changed(Slider::removed())"]
             set_class_active: ("removed", self.removed),
