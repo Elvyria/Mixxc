@@ -148,12 +148,10 @@ impl AudioServer for Pulse {
     }
 
     fn request_master(&self, sender: Sender<Message>) -> Result<(), Error> {
-        let sink_callback = {
-            let peakers = self.peakers.clone();
-            let context = self.context.clone();
-
-            move |info: ListResult<&SinkInfo>| {
-                add_sink_input(info, &context, &sender, &peakers);
+        let sink_callback = move |info: ListResult<&SinkInfo>| {
+            if let ListResult::Item(info) = info {
+                let client: Box<Client> = Box::new(info.into());
+                sender.emit(Message::New(client));
             }
         };
 
@@ -169,7 +167,6 @@ impl AudioServer for Pulse {
 
     fn subscribe(&self, plan: Kind, sender: Sender<Message>) -> Result<(), Error> {
         let subscribe_callback = Box::new({
-            let sender = sender.clone();
             let context = self.context.clone();
             let peakers = self.peakers.clone();
 
@@ -230,9 +227,7 @@ impl AudioServer for Pulse {
     }
 }
 
-fn add_sink_input<C>(info: ListResult<C>, context: &Arc<Mutex<Option<Context>>>, sender: &Sender<Message>, peakers: &Peakers)
-where
-    C: Into<Client>
+fn add_sink_input(info: ListResult<&SinkInputInfo>, context: &Arc<Mutex<Option<Context>>>, sender: &Sender<Message>, peakers: &Peakers)
 {
     if let ListResult::Item(info) = info {
         let client: Box<Client> = Box::new(info.into());
@@ -265,11 +260,6 @@ fn peak_callback(stream: &mut Stream, sender: &Sender<Message>, i: u32) {
 
 fn create_peeker(context: &mut Context, sender: &Sender<Message>, i: u32) -> Option<Pb<Stream>> {
     use stream::FlagSet;
-
-    // TODO: set_monitor_stream requires the real sink id, instead of 0,
-    // and needs to be destroyed/created if *default* device was changed.
-    // For now just don't create peaker that spams 0's.
-    if i == 0 { return None }
 
     const PEAK_BUF_ATTR: &BufferAttr = &BufferAttr {
         maxlength: 0, tlength:   0,
@@ -344,7 +334,7 @@ fn subscribe_callback(sender: &Sender<Message>, context: &Arc<Mutex<Option<Conte
                 let context = context.clone();
                 let peakers = peakers.clone();
 
-                move |info: ListResult<&SinkInputInfo>| add_sink_input(info, &context, &sender, &peakers)
+                move |info| add_sink_input(info, &context, &sender, &peakers)
             });
         },
         Operation::Removed => {
