@@ -80,7 +80,7 @@ impl AudioServer for Pulse {
         });
 
         {
-            let mut lock = self.context.try_lock().unwrap();
+            let mut lock = self.context.lock().unwrap();
             let context = lock.as_mut().unwrap();
 
             context.set_state_callback(Some(state_callback));
