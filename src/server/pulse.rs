@@ -230,6 +230,8 @@ impl AudioServer for Pulse {
 fn add_sink_input(info: ListResult<&SinkInputInfo>, context: &Arc<Mutex<Option<Context>>>, sender: &Sender<Message>, peakers: &Peakers)
 {
     if let ListResult::Item(info) = info {
+        if !info.has_volume { return }
+
         let client: Box<Client> = Box::new(info.into());
         let id = client.id;
 
