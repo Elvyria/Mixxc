@@ -580,6 +580,9 @@ impl Component for App {
             }
             Error(e) => eprintln!("{e}"),
             Disconnected(Some(e)) => {
+                eprintln!("{e}");
+
+                self.server.disconnect();
                 self.ready.replace(false);
                 self.sliders.clear();
             }
