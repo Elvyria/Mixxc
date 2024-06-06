@@ -272,9 +272,10 @@ fn create_peeker(context: &mut Context, sender: &Sender<Message>, i: u32) -> Opt
     use stream::FlagSet;
 
     const PEAK_BUF_ATTR: &BufferAttr = &BufferAttr {
-        maxlength: 0, tlength:   0,
-        prebuf:    0, minreq:    0,
-        fragsize:  std::mem::size_of::<f32>() as u32,
+        maxlength: mem::size_of::<f32>() as u32,
+        fragsize:  mem::size_of::<f32>() as u32,
+
+        prebuf: 0, minreq: 0, tlength: 0,
     };
 
     static PEAK_SPEC: OnceLock<Spec> = OnceLock::new();
@@ -295,7 +296,8 @@ fn create_peeker(context: &mut Context, sender: &Sender<Message>, i: u32) -> Opt
     stream.set_monitor_stream(i).ok()?;
 
     const FLAGS: FlagSet = FlagSet::PEAK_DETECT
-            .union(FlagSet::ADJUST_LATENCY)
+            .union(FlagSet::DONT_INHIBIT_AUTO_SUSPEND)
+            .union(FlagSet::PASSTHROUGH)
             .union(FlagSet::START_UNMUTED);
 
     stream.connect_record(None, Some(PEAK_BUF_ATTR), FLAGS).ok()?;
