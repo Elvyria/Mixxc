@@ -272,8 +272,8 @@ fn create_peeker(context: &mut Context, sender: &Sender<Message>, i: u32) -> Opt
     use stream::FlagSet;
 
     const PEAK_BUF_ATTR: &BufferAttr = &BufferAttr {
-        maxlength: mem::size_of::<f32>() as u32,
-        fragsize:  mem::size_of::<f32>() as u32,
+        maxlength: std::mem::size_of::<f32>() as u32,
+        fragsize:  std::mem::size_of::<f32>() as u32,
 
         prebuf: 0, minreq: 0, tlength: 0,
     };
