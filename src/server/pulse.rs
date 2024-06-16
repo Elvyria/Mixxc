@@ -2,7 +2,7 @@ use std::borrow::Cow;
 use std::cell::RefCell;
 use std::pin::Pin;
 use std::rc::Rc;
-use std::sync::{Arc, OnceLock};
+use std::sync::{Arc, OnceLock, Weak};
 
 use parking_lot::ReentrantMutex;
 
@@ -72,7 +72,7 @@ impl AudioServer for Pulse {
         self.context.lock().replace(context);
 
         let state_callback = Box::new({
-            let context = self.context.clone();
+            let context = Arc::downgrade(&self.context);
             let sender = sender.clone();
 
             move || state_callback(&context, &sender)
@@ -120,7 +120,7 @@ impl AudioServer for Pulse {
     fn request_software(&self, sender: Sender<Message>) -> Result<(), Error> {
         let input_callback = {
             let peakers = self.peakers.clone();
-            let context = self.context.clone();
+            let context = Arc::downgrade(&self.context);
 
             move |info: ListResult<&SinkInputInfo>| {
                 add_sink_input(info, &context, &sender, &peakers);
@@ -163,7 +163,7 @@ impl AudioServer for Pulse {
 
     fn subscribe(&self, plan: Kind, sender: Sender<Message>) -> Result<(), Error> {
         let subscribe_callback = Box::new({
-            let context = self.context.clone();
+            let context = Arc::downgrade(&self.context);
             let peakers = self.peakers.clone();
 
             move |facility, op, i| subscribe_callback(&sender, &context, &peakers, facility, op, i)
@@ -232,8 +232,10 @@ impl AudioServer for Pulse {
     }
 }
 
-fn add_sink_input(info: ListResult<&SinkInputInfo>, context: &Arc<ReentrantMutex<RefCell<Option<Context>>>>, sender: &Sender<Message>, peakers: &Peakers)
+fn add_sink_input(info: ListResult<&SinkInputInfo>, context: &Weak<ReentrantMutex<RefCell<Option<Context>>>>, sender: &Sender<Message>, peakers: &Peakers)
 {
+    let Some(context) = context.upgrade() else { return };
+
     if let ListResult::Item(info) = info {
         if !info.has_volume { return }
 
@@ -316,7 +318,8 @@ fn create_peeker(context: &mut Context, sender: &Sender<Message>, i: u32) -> Opt
     Some(stream)
 }
 
-fn subscribe_callback(sender: &Sender<Message>, context: &Arc<ReentrantMutex<RefCell<Option<Context>>>>, peakers: &Peakers, facility: Option<Facility>, op: Option<Operation>, i: u32) {
+fn subscribe_callback(sender: &Sender<Message>, context: &Weak<ReentrantMutex<RefCell<Option<Context>>>>, peakers: &Peakers, facility: Option<Facility>, op: Option<Operation>, i: u32) {
+    let Some(context) = context.upgrade() else { return };
     let Some(op) = op else { return };
 
     let introspect = {
@@ -348,7 +351,7 @@ fn subscribe_callback(sender: &Sender<Message>, context: &Arc<ReentrantMutex<Ref
         Operation::New => {
             introspect.get_sink_input_info(i, {
                 let sender = sender.clone();
-                let context = context.clone();
+                let context = Arc::downgrade(&context);
                 let peakers = peakers.clone();
 
                 move |info| add_sink_input(info, &context, &sender, &peakers)
@@ -373,8 +376,10 @@ fn subscribe_callback(sender: &Sender<Message>, context: &Arc<ReentrantMutex<Ref
     }
 }
 
-fn state_callback(context: &Arc<ReentrantMutex<RefCell<Option<Context>>>>, sender: &Sender<Message>) {
+fn state_callback(context: &Weak<ReentrantMutex<RefCell<Option<Context>>>>, sender: &Sender<Message>) {
     use libpulse_binding::context::State::*;
+
+    let Some(context) = context.upgrade() else { return };
 
     let guard = context.lock();
     let Ok(context) = (*guard).try_borrow() else { return };
