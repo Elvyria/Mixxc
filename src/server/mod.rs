@@ -63,6 +63,7 @@ pub enum Message {
     Removed(u32),
     Peak(u32, f32),
     Ready,
+    Timeout,
     Error(Error),
     Disconnected(Option<Error>),
     Quit,

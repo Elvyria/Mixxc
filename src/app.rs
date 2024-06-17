@@ -513,11 +513,9 @@ impl Component for App {
             }
         });
 
-        // Wait for server to send server::Ready message or wait and send it ourselves.
-        // This is not sound, but 'Timeout' message would not be useful enough.
         sender.oneshot_command(async move {
             tokio::time::sleep(Duration::from_millis(10)).await;
-            server::Message::Ready
+            server::Message::Timeout
         });
 
         ComponentParts { model, widgets }
@@ -578,6 +576,7 @@ impl Component for App {
 
                 window.set_visible(true);
             }
+            Timeout => window.set_visible(true),
             Error(e) => eprintln!("{e}"),
             Disconnected(Some(e)) => {
                 eprintln!("{e}");
