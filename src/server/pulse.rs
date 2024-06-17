@@ -22,7 +22,7 @@ use super::error::{Error, PulseError};
 use super::{AudioServer, Client, Kind, Message, Volume};
 
 pub struct Pulse {
-    context: Arc<ReentrantMutex<RefCell<Option<Context>>>>,
+    context: Arc<ReentrantMutex<RefCell<Context>>>,
     peakers: Peakers,
 }
 
@@ -49,12 +49,22 @@ impl Peakers {
             peakers.remove(pos);
         }
     }
+
+    fn clear(&self) {
+        (*self.0).borrow_mut().clear();
+    }
 }
 
 impl Pulse {
     pub fn new() -> Self {
+        let mut proplist = Proplist::new().unwrap();
+        proplist.set_str(APPLICATION_NAME, crate::APP_NAME).unwrap();
+
+        let mainloop = Mainloop::new().unwrap();
+        let context = Context::new_with_proplist(&mainloop, "Mixxc Context", &proplist).unwrap();
+
         Self {
-            context: Arc::new(ReentrantMutex::new(RefCell::new(None))),
+            context: Arc::new(ReentrantMutex::new(RefCell::new(context))),
             peakers: Peakers(Rc::new(RefCell::new(Vec::new()))),
         }
     }
@@ -66,10 +76,7 @@ impl AudioServer for Pulse {
         proplist.set_str(APPLICATION_NAME, crate::APP_NAME).unwrap();
 
         let mut mainloop = Mainloop::new().unwrap();
-
-        let context = Context::new_with_proplist(&mainloop, "Mixxc Context", &proplist);
-
-        self.context.lock().replace(context);
+        self.context.lock().replace(Context::new_with_proplist(&mainloop, "Mixxc Context", &proplist).unwrap());
 
         let state_callback = Box::new({
             let context = Arc::downgrade(&self.context);
@@ -80,8 +87,8 @@ impl AudioServer for Pulse {
 
         {
             let guard = self.context.lock();
-            let mut context = (*guard).borrow_mut();
-            let context = context.as_mut().unwrap();
+            // SAFETY: The lock ensures that shared access comes strictly from callbacks.
+            let context: &mut Context = unsafe { &mut *guard.as_ptr() };
 
             context.set_state_callback(Some(state_callback));
 
@@ -100,8 +107,7 @@ impl AudioServer for Pulse {
             }
         }
 
-        (*self.peakers.0).borrow_mut().clear();
-        self.context.lock().replace(None);
+        self.peakers.clear();
 
         sender.emit(Message::Disconnected(None));
 
@@ -110,11 +116,10 @@ impl AudioServer for Pulse {
 
     fn disconnect(&self) {
         let guard = self.context.lock();
-        let mut context = (*guard).borrow_mut();
+        // SAFETY: The lock ensures that shared access comes strictly from callbacks.
+        let context: &mut Context = unsafe { &mut *guard.as_ptr() };
 
-        if let Some(mut context) = context.take() {
-            context.disconnect();
-        }
+        context.disconnect();
     }
 
     fn request_software(&self, sender: Sender<Message>) -> Result<(), Error> {
@@ -128,15 +133,15 @@ impl AudioServer for Pulse {
         };
 
         let guard = self.context.lock();
-        let mut context = (*guard).borrow_mut();
+        let context = guard.borrow();
 
-        match context.as_mut() {
-            Some(context) => {
+        match context.get_state() {
+            context::State::Ready => {
                 context.introspect().get_sink_input_info_list(input_callback);
 
                 Ok(())
             }
-            None => Err(PulseError::Context.into()),
+            _ => Err(PulseError::Context.into()),
         }
     }
 
@@ -149,15 +154,15 @@ impl AudioServer for Pulse {
         };
 
         let guard = self.context.lock();
-        let mut context = (*guard).borrow_mut();
+        let context = guard.borrow();
 
-        match context.as_mut() {
-            Some(context) => {
+        match context.get_state() {
+            context::State::Ready => {
                 context.introspect().get_sink_info_by_index(0, sink_callback);
 
                 Ok(())
             }
-            None => Err(PulseError::Context.into()),
+            _ => Err(PulseError::Context.into()),
         }
     }
 
@@ -174,16 +179,16 @@ impl AudioServer for Pulse {
         if plan.contains(Kind::Hardware) { mask |= InterestMaskSet::SINK;       }
 
         let guard = self.context.lock();
-        let mut context = (*guard).borrow_mut();
+        let mut context = guard.borrow_mut();
 
-        match context.as_mut() {
-            Some(context) => {
+        match context.get_state() {
+            context::State::Ready => {
                 context.set_subscribe_callback(Some(subscribe_callback));
                 context.subscribe(mask, |_| ());
 
                 Ok(())
             }
-            None => Err(PulseError::Context.into()),
+            _ => Err(PulseError::Context.into()),
         }
     }
 
@@ -195,9 +200,9 @@ impl AudioServer for Pulse {
         });
 
         let guard = self.context.lock();
-        let mut context = (*guard).borrow_mut();
+        let context = guard.borrow();
 
-        if let Some(context) = context.as_mut() {
+        if let context::State::Ready = context.get_state() {
             let mut introspect = context.introspect();
 
             match kind {
@@ -214,9 +219,9 @@ impl AudioServer for Pulse {
 
     fn set_mute(&self, id: u32, kind: Kind, flag: bool) {
         let guard = self.context.lock();
-        let mut context = (*guard).borrow_mut();
+        let context = guard.borrow();
 
-        if let Some(context) = context.as_mut() {
+        if let context::State::Ready = context.get_state() {
             let mut introspect = context.introspect();
 
             match kind {
@@ -232,7 +237,7 @@ impl AudioServer for Pulse {
     }
 }
 
-fn add_sink_input(info: ListResult<&SinkInputInfo>, context: &Weak<ReentrantMutex<RefCell<Option<Context>>>>, sender: &Sender<Message>, peakers: &Peakers)
+fn add_sink_input(info: ListResult<&SinkInputInfo>, context: &Weak<ReentrantMutex<RefCell<Context>>>, sender: &Sender<Message>, peakers: &Peakers)
 {
     let Some(context) = context.upgrade() else { return };
 
@@ -245,9 +250,9 @@ fn add_sink_input(info: ListResult<&SinkInputInfo>, context: &Weak<ReentrantMute
         sender.emit(Message::New(client));
 
         let guard = context.lock();
-        let mut context = (*guard).borrow_mut();
+        let context: &mut Context = unsafe { &mut *guard.as_ptr() };
 
-        if let Some(context) = context.as_mut() {
+        if let context::State::Ready = context.get_state() {
             if let Some(p) = create_peeker(context, sender, id) {
                 peakers.add(p)
             }
@@ -318,17 +323,17 @@ fn create_peeker(context: &mut Context, sender: &Sender<Message>, i: u32) -> Opt
     Some(stream)
 }
 
-fn subscribe_callback(sender: &Sender<Message>, context: &Weak<ReentrantMutex<RefCell<Option<Context>>>>, peakers: &Peakers, facility: Option<Facility>, op: Option<Operation>, i: u32) {
+fn subscribe_callback(sender: &Sender<Message>, context: &Weak<ReentrantMutex<RefCell<Context>>>, peakers: &Peakers, facility: Option<Facility>, op: Option<Operation>, i: u32) {
     let Some(context) = context.upgrade() else { return };
     let Some(op) = op else { return };
 
     let introspect = {
         let guard = context.lock();
-        let mut context = (*guard).borrow_mut();
+        let context: &mut Context = unsafe { &mut *guard.as_ptr() };
 
-        match context.as_mut() {
-            Some(context) => context.introspect(),
-            None => return,
+        match context.get_state() {
+            context::State::Ready => context.introspect(),
+            _ => return,
         }
     };
 
@@ -376,24 +381,22 @@ fn subscribe_callback(sender: &Sender<Message>, context: &Weak<ReentrantMutex<Re
     }
 }
 
-fn state_callback(context: &Weak<ReentrantMutex<RefCell<Option<Context>>>>, sender: &Sender<Message>) {
+fn state_callback(context: &Weak<ReentrantMutex<RefCell<Context>>>, sender: &Sender<Message>) {
     use libpulse_binding::context::State::*;
 
     let Some(context) = context.upgrade() else { return };
 
     let guard = context.lock();
-    let Ok(context) = (*guard).try_borrow() else { return };
+    let context = guard.borrow();
 
-    if let Some(context) = context.as_ref() {
-        match context.get_state() {
-            Ready => sender.emit(Message::Ready),
-            Failed => {
-                let e = PulseError::from(context.errno());
-                sender.emit(Message::Disconnected(Some(e.into())));
-            },
-            Terminated => sender.emit(Message::Disconnected(None)),
-            _ => {},
-        }
+    match context.get_state() {
+        Ready => sender.emit(Message::Ready),
+        Failed => {
+            let e = PulseError::from(context.errno());
+            sender.emit(Message::Disconnected(Some(e.into())));
+        },
+        Terminated => sender.emit(Message::Disconnected(None)),
+        _ => {},
     }
 }
 
