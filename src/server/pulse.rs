@@ -1,7 +1,6 @@
 use std::borrow::Cow;
 use std::cell::RefCell;
 use std::pin::Pin;
-use std::rc::Rc;
 use std::sync::{Arc, OnceLock, Weak};
 
 use parking_lot::ReentrantMutex;
@@ -23,24 +22,20 @@ use super::{AudioServer, Client, Kind, Message, Volume};
 
 pub struct Pulse {
     context: Arc<ReentrantMutex<RefCell<Context>>>,
-    peakers: Peakers,
+    peakers: Arc<ReentrantMutex<Peakers>>,
 }
 
 type Pb<T> = Pin<Box<T>>;
 
-#[derive(Clone)]
-struct Peakers(Rc<RefCell<Vec<Pb<Stream>>>>);
-
-unsafe impl Send for Peakers {}
-unsafe impl Sync for Peakers {}
+struct Peakers(RefCell<Vec<Pb<Stream>>>);
 
 impl Peakers {
     fn add(&self, peaker: Pb<Stream>) {
-        (*self.0).borrow_mut().push(peaker);
+        self.0.borrow_mut().push(peaker);
     }
 
     fn remove(&self, i: u32) {
-        let mut peakers = (*self.0).borrow_mut();
+        let mut peakers = self.0.borrow_mut();
 
         if let Some(pos) = peakers.iter().position(|stream| stream.get_index() == Some(i)) {
             let stream = peakers.get_mut(pos).unwrap();
@@ -51,7 +46,7 @@ impl Peakers {
     }
 
     fn clear(&self) {
-        (*self.0).borrow_mut().clear();
+        self.0.borrow_mut().clear();
     }
 }
 
@@ -65,7 +60,7 @@ impl Pulse {
 
         Self {
             context: Arc::new(ReentrantMutex::new(RefCell::new(context))),
-            peakers: Peakers(Rc::new(RefCell::new(Vec::new()))),
+            peakers: Arc::new(ReentrantMutex::new(Peakers(RefCell::new(Vec::new())))),
         }
     }
 }
@@ -107,7 +102,7 @@ impl AudioServer for Pulse {
             }
         }
 
-        self.peakers.clear();
+        self.peakers.lock().clear();
 
         sender.emit(Message::Disconnected(None));
 
@@ -124,7 +119,7 @@ impl AudioServer for Pulse {
 
     fn request_software(&self, sender: Sender<Message>) -> Result<(), Error> {
         let input_callback = {
-            let peakers = self.peakers.clone();
+            let peakers = Arc::downgrade(&self.peakers);
             let context = Arc::downgrade(&self.context);
 
             move |info: ListResult<&SinkInputInfo>| {
@@ -169,7 +164,7 @@ impl AudioServer for Pulse {
     fn subscribe(&self, plan: Kind, sender: Sender<Message>) -> Result<(), Error> {
         let subscribe_callback = Box::new({
             let context = Arc::downgrade(&self.context);
-            let peakers = self.peakers.clone();
+            let peakers = Arc::downgrade(&self.peakers);
 
             move |facility, op, i| subscribe_callback(&sender, &context, &peakers, facility, op, i)
         });
@@ -237,7 +232,7 @@ impl AudioServer for Pulse {
     }
 }
 
-fn add_sink_input(info: ListResult<&SinkInputInfo>, context: &Weak<ReentrantMutex<RefCell<Context>>>, sender: &Sender<Message>, peakers: &Peakers)
+fn add_sink_input(info: ListResult<&SinkInputInfo>, context: &Weak<ReentrantMutex<RefCell<Context>>>, sender: &Sender<Message>, peakers: &Weak<ReentrantMutex<Peakers>>)
 {
     let Some(context) = context.upgrade() else { return };
 
@@ -253,8 +248,10 @@ fn add_sink_input(info: ListResult<&SinkInputInfo>, context: &Weak<ReentrantMute
         let context: &mut Context = unsafe { &mut *guard.as_ptr() };
 
         if let context::State::Ready = context.get_state() {
+            let Some(peakers) = peakers.upgrade() else { return };
+
             if let Some(p) = create_peeker(context, sender, id) {
-                peakers.add(p)
+                peakers.lock().add(p);
             }
         }
     }
@@ -323,7 +320,7 @@ fn create_peeker(context: &mut Context, sender: &Sender<Message>, i: u32) -> Opt
     Some(stream)
 }
 
-fn subscribe_callback(sender: &Sender<Message>, context: &Weak<ReentrantMutex<RefCell<Context>>>, peakers: &Peakers, facility: Option<Facility>, op: Option<Operation>, i: u32) {
+fn subscribe_callback(sender: &Sender<Message>, context: &Weak<ReentrantMutex<RefCell<Context>>>, peakers: &Weak<ReentrantMutex<Peakers>>, facility: Option<Facility>, op: Option<Operation>, i: u32) {
     let Some(context) = context.upgrade() else { return };
     let Some(op) = op else { return };
 
@@ -363,7 +360,10 @@ fn subscribe_callback(sender: &Sender<Message>, context: &Weak<ReentrantMutex<Re
             });
         },
         Operation::Removed => {
-            peakers.remove(i);
+            if let Some(peakers) = peakers.upgrade() {
+                peakers.lock().remove(i);
+            }
+
             sender.emit(Message::Removed(i));
         },
         Operation::Changed => {
