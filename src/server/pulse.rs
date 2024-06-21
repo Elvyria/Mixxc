@@ -52,11 +52,8 @@ impl Peakers {
 
 impl Pulse {
     pub fn new() -> Self {
-        let mut proplist = Proplist::new().unwrap();
-        proplist.set_str(APPLICATION_NAME, crate::APP_NAME).unwrap();
-
         let mainloop = Mainloop::new().unwrap();
-        let context = Context::new_with_proplist(&mainloop, "Mixxc Context", &proplist).unwrap();
+        let context = Context::new(&mainloop, "Mixxc Context").unwrap();
 
         Self {
             context: Arc::new(ReentrantMutex::new(RefCell::new(context))),
