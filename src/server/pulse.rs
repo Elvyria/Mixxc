@@ -15,6 +15,7 @@ use libpulse_binding::mainloop::standard::{Mainloop, IterateResult};
 use libpulse_binding::proplist::{properties::APPLICATION_NAME, Proplist};
 use libpulse_binding::sample::{Format, Spec};
 use libpulse_binding::stream::{Stream, self, PeekResult};
+use libpulse_binding::volume::ChannelVolumes;
 
 use super::error::{Error, PulseError};
 
@@ -185,12 +186,6 @@ impl AudioServer for Pulse {
     }
 
     fn set_volume(&self, id: u32, kind: Kind, volume: Volume) {
-        let mut cv = libpulse_binding::volume::ChannelVolumes::default();
-        cv.set_len(volume.inner.len() as u8);
-        cv.get_mut().copy_from_slice(unsafe {
-            std::mem::transmute::<&[u32], &[libpulse_binding::volume::Volume]>(&volume.inner)
-        });
-
         let guard = self.context.lock();
         let context = guard.borrow();
 
@@ -199,10 +194,10 @@ impl AudioServer for Pulse {
 
             match kind {
                 k if k.contains(Kind::Out | Kind::Software) => {
-                    introspect.set_sink_input_volume(id, &cv, None);
+                    introspect.set_sink_input_volume(id, &volume.into(), None);
                 },
                 k if k.contains(Kind::Out | Kind::Hardware) => {
-                    introspect.set_sink_volume_by_index(id, &cv, None);
+                    introspect.set_sink_volume_by_index(id, &volume.into(), None);
                 },
                 _ => {}
             };
@@ -394,6 +389,19 @@ fn state_callback(context: &Weak<ReentrantMutex<RefCell<Context>>>, sender: &Sen
         },
         Terminated => sender.emit(Message::Disconnected(None)),
         _ => {},
+    }
+}
+
+
+
+impl From<Volume> for ChannelVolumes {
+    fn from(v: Volume) -> Self {
+        let mut cv = ChannelVolumes::default();
+        cv.set_len(v.inner.len() as u8);
+        cv.get_mut().copy_from_slice(unsafe {
+            std::mem::transmute::<&[u32], &[libpulse_binding::volume::Volume]>(&v.inner)
+        });
+        cv
     }
 }
 
