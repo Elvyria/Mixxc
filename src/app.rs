@@ -434,8 +434,9 @@ impl Component for App {
             let server = server.clone();
 
             move |sender| {
-                while let Err(e) = server.connect(sender.clone()) {
-                    eprintln!("{e}");
+                match server.connect(sender.clone()){
+                    Ok(()) => sender.emit(server::Message::Disconnected(None)),
+                    Err(e) => panic!("{e}"),
                 }
             }
         });
@@ -586,10 +587,7 @@ impl Component for App {
                 self.sliders.clear();
             }
             Disconnected(None) => relm4::main_application().quit(),
-            Quit => {
-                self.server.disconnect();
-                relm4::main_application().quit();
-            }
+            Quit => self.server.disconnect(),
         }
     }
 
