@@ -5,7 +5,7 @@ use std::pin::Pin;
 use std::sync::{Arc, atomic::{AtomicU8, Ordering}, OnceLock, Weak};
 use std::thread::Thread;
 
-use parking_lot::{Mutex, MutexGuard, ReentrantMutex, ReentrantMutexGuard};
+use parking_lot::{Mutex, MutexGuard};
 use relm4::Sender;
 
 use libpulse_binding::callbacks::ListResult;
@@ -24,8 +24,8 @@ type Pb<T> = Pin<Box<T>>;
 type Peakers = Vec<Pb<Stream>>;
 
 pub struct Pulse {
-    context: Arc<ReentrantMutex<RefCell<Context>>>,
-    peakers: Arc<ReentrantMutex<RefCell<Peakers>>>,
+    context: Arc<Mutex<RefCell<Context>>>,
+    peakers: Arc<Mutex<RefCell<Peakers>>>,
     state:   Arc<AtomicU8>,
     locked:  AtomicU8,
     thread:  Mutex<Thread>,
@@ -49,8 +49,8 @@ impl Pulse {
         });
 
         Self {
-            context: Arc::new(ReentrantMutex::new(RefCell::new(context))),
-            peakers: Arc::new(ReentrantMutex::new(RefCell::new(Vec::with_capacity(8)))),
+            context: Arc::new(Mutex::new(RefCell::new(context))),
+            peakers: Arc::new(Mutex::new(RefCell::new(Vec::with_capacity(8)))),
             state:   Arc::new(AtomicU8::new(0)),
             locked:  AtomicU8::new(Lock::Unlocked as u8),
             thread:  Mutex::new(std::thread::current()),
@@ -281,7 +281,7 @@ impl AudioServer for Pulse {
     }
 }
 
-fn add_sink_input(info: ListResult<&SinkInputInfo>, context: &Weak<ReentrantMutex<RefCell<Context>>>, sender: &Sender<Message>, peakers: &Weak<ReentrantMutex<RefCell<Peakers>>>)
+fn add_sink_input(info: ListResult<&SinkInputInfo>, context: &Weak<Mutex<RefCell<Context>>>, sender: &Sender<Message>, peakers: &Weak<Mutex<RefCell<Peakers>>>)
 {
     let Some(context) = context.upgrade() else { return };
     let Some(peakers) = peakers.upgrade() else { return };
@@ -370,7 +370,7 @@ fn create_peeker(context: &mut Context, sender: &Sender<Message>, i: u32) -> Opt
     Some(stream)
 }
 
-fn subscribe_callback(sender: &Sender<Message>, context: &Weak<ReentrantMutex<RefCell<Context>>>, peakers: &Weak<ReentrantMutex<RefCell<Peakers>>>, facility: Option<Facility>, op: Option<Operation>, i: u32) {
+fn subscribe_callback(sender: &Sender<Message>, context: &Weak<Mutex<RefCell<Context>>>, peakers: &Weak<Mutex<RefCell<Peakers>>>, facility: Option<Facility>, op: Option<Operation>, i: u32) {
     let Some(context) = context.upgrade() else { return };
     let Some(op) = op else { return };
 
@@ -430,7 +430,7 @@ fn subscribe_callback(sender: &Sender<Message>, context: &Weak<ReentrantMutex<Re
     }
 }
 
-fn state_callback(context: &Weak<ReentrantMutex<RefCell<Context>>>, state: &Weak<AtomicU8>, sender: &Sender<Message>) {
+fn state_callback(context: &Weak<Mutex<RefCell<Context>>>, state: &Weak<AtomicU8>, sender: &Sender<Message>) {
     let Some(context) = context.upgrade() else { return };
 
     let guard = context.lock();
@@ -452,7 +452,7 @@ fn state_callback(context: &Weak<ReentrantMutex<RefCell<Context>>>, state: &Weak
 }
 
 struct ContextRef<'a> {
-    context: ReentrantMutexGuard<'a, RefCell<Context>>,
+    context: MutexGuard<'a, RefCell<Context>>,
     lock: &'a AtomicU8,
     thread: MutexGuard<'a, Thread>,
 }
