@@ -45,12 +45,12 @@ features = ["xlib"]
 
 [dependencies.relm4]
 version = "0.8.1"
-default_features = false
+default-features = false
 features = ["macros"]
 
 [dependencies.libpulse-binding]
 version = "2.0"
-default_features = false
+default-features = false
 features = ["pa_v8"]
 
 [dependencies.zbus]
