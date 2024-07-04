@@ -4,11 +4,11 @@ use std::rc::Rc;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
-use relm4::{gtk, RelmWidgetExt, FactorySender};
+use relm4::{gtk, RelmWidgetExt};
 use relm4::component::{AsyncComponent, AsyncComponentSender, AsyncComponentParts};
-use relm4::factory::FactoryVecDeque;
+use relm4::factory::{AsyncFactoryVecDeque, AsyncFactorySender, AsyncFactoryComponent};
 use relm4::once_cell::sync::OnceCell;
-use relm4::prelude::{DynamicIndex, FactoryComponent};
+use relm4::prelude::DynamicIndex;
 
 use gtk::glib::{object::Cast, ControlFlow};
 use gtk::prelude::{ApplicationExt, GtkWindowExt, BoxExt, GestureSingleExt, OrientableExt, RangeExt, WidgetExt, WidgetExtManual};
@@ -35,7 +35,7 @@ pub struct App {
 }
 
 struct Sliders {
-    container: FactoryVecDeque<Slider>,
+    container: AsyncFactoryVecDeque<Slider>,
     direction: GrowthDirection,
 }
 
@@ -59,7 +59,7 @@ impl Sliders {
     fn remove(&mut self, id: u32) {
         let mut sliders = self.container.guard();
 
-        let pos = sliders.iter().position(|e| e.id == id);
+        let pos = sliders.iter().flatten().position(|e| e.id == id);
         if let Some(pos) = pos {
             sliders.remove(pos);
         }
@@ -74,11 +74,12 @@ impl Sliders {
     fn contains(&self, id: u32) -> bool {
         self.container.borrow()
             .iter()
+            .flatten()
             .any(|e| e.id == id)
     }
 
     fn send(&self, id: u32, message: SliderMessage) {
-        if let Some(index) = self.container.iter().position(|slider| slider.id == id) {
+        if let Some(index) = self.container.iter().flatten().position(|slider| slider.id == id) {
             self.container.send(index, message)
         }
     }
@@ -130,7 +131,7 @@ pub enum Message {
     Close
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum SliderMessage {
     Mute,
     ValueChange(f64),
@@ -161,8 +162,8 @@ fn client_icon(icon: Option<String>, volume_percent: u8, muted: bool) -> Cow<'st
     }
 }
 
-#[relm4::factory()]
-impl FactoryComponent for Slider {
+#[relm4::factory(async)]
+impl AsyncFactoryComponent for Slider {
     type Init = server::Client;
     type Input = SliderMessage;
     type Output = Message;
@@ -248,7 +249,7 @@ impl FactoryComponent for Slider {
         }
     }
 
-    fn init_widgets(&mut self, _: &Self::Index, root: Self::Root, _: &<Self::ParentWidget as relm4::factory::FactoryView>::ReturnedWidget, sender: FactorySender<Self>) -> Self::Widgets {
+    fn init_widgets(&mut self, _: &DynamicIndex, root: Self::Root, _: &<Self::ParentWidget as relm4::factory::FactoryView>::ReturnedWidget, sender: AsyncFactorySender<Self>) -> Self::Widgets {
         let parent = root.parent().expect("Slider has a parent")
             .downcast::<widgets::SliderBox>().expect("Slider parent is a SliderBox");
 
@@ -306,7 +307,7 @@ impl FactoryComponent for Slider {
         widgets
     }
 
-    fn init_model(init: Self::Init, _: &DynamicIndex, sender: FactorySender<Self>) -> Self {
+    async fn init_model(init: Self::Init, _: &DynamicIndex, sender: AsyncFactorySender<Self>) -> Self {
         sender.command(|sender, shutdown| {
             shutdown.register(async move {
                 let mut interval = tokio::time::interval(Duration::from_millis(10));
@@ -343,7 +344,7 @@ impl FactoryComponent for Slider {
         }
     }
 
-    fn update_cmd(&mut self, cmd: Self::CommandOutput, _: FactorySender<Self>) {
+    async fn update_cmd(&mut self, cmd: Self::CommandOutput, _: AsyncFactorySender<Self>) {
         self.reset();
 
         match cmd {
@@ -357,7 +358,7 @@ impl FactoryComponent for Slider {
         }
     }
 
-    fn update(&mut self, message: Self::Input, sender: FactorySender<Self>) {
+    async fn update(&mut self, message: Self::Input, sender: AsyncFactorySender<Self>) {
        self.reset();
 
        match message {
@@ -463,7 +464,7 @@ impl AsyncComponent for App {
             }
         });
 
-        let sliders = FactoryVecDeque::builder()
+        let sliders = AsyncFactoryVecDeque::builder()
             .launch(widgets::SliderBox::default())
             .forward(sender.input_sender(), std::convert::identity);
 
