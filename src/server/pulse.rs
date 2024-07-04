@@ -5,17 +5,18 @@ use std::pin::Pin;
 use std::sync::{Arc, atomic::{AtomicU8, Ordering}, OnceLock, Weak};
 use std::thread::Thread;
 
-use parking_lot::{Mutex, MutexGuard};
-use relm4::Sender;
-
 use libpulse_binding::callbacks::ListResult;
 use libpulse_binding::context::{self, introspect::{SinkInfo, SinkInputInfo}, subscribe::{Facility, InterestMaskSet, Operation}, Context, State};
-use libpulse_binding::def::BufferAttr;
+use libpulse_binding::def::{Retval, BufferAttr};
 use libpulse_binding::mainloop::standard::Mainloop;
 use libpulse_binding::proplist::{properties::APPLICATION_NAME, Proplist};
 use libpulse_binding::sample::{Format, Spec};
 use libpulse_binding::stream::{Stream, self, PeekResult};
 use libpulse_binding::volume::ChannelVolumes;
+
+use parking_lot::{Mutex, MutexGuard};
+use relm4::Sender;
+use tokio::sync::watch;
 
 use super::error::{Error, PulseError};
 use super::{AudioServer, Client, Kind, Message, Volume};
@@ -27,11 +28,12 @@ pub struct Pulse {
     context: Arc<Mutex<RefCell<Context>>>,
     peakers: Arc<Mutex<RefCell<Peakers>>>,
     state:   Arc<AtomicU8>,
-    locked:  AtomicU8,
+    lock:    watch::Sender<Lock>,
     thread:  Mutex<Thread>,
 }
 
 #[repr(u8)]
+#[derive(PartialEq)]
 enum Lock {
     Unlocked = 0,
     Locked   = 1,
@@ -52,7 +54,7 @@ impl Pulse {
             context: Arc::new(Mutex::new(RefCell::new(context))),
             peakers: Arc::new(Mutex::new(RefCell::new(Vec::with_capacity(8)))),
             state:   Arc::new(AtomicU8::new(0)),
-            locked:  AtomicU8::new(Lock::Unlocked as u8),
+            lock:    watch::channel(Lock::Unlocked).0,
             thread:  Mutex::new(std::thread::current()),
         }
     }
@@ -72,35 +74,31 @@ impl Pulse {
         state == State::Ready
     }
 
-    fn lock(&self) -> ContextRef {
-        self.locked.store(Lock::Aquire as u8, Ordering::Release);
-        let mut context = None;
-        let mut thread = None;
+    async fn lock(&self) -> ContextRef {
+        self.lock.send_replace(Lock::Aquire);
+        self.lock.subscribe().wait_for(|lock| *lock == Lock::Locked).await.unwrap();
 
-        while self.locked.load(Ordering::Acquire) != Lock::Locked as u8 {
-            if context.is_none() {
-                if let Some(guard) = self.context.try_lock() {
-                    context = Some(guard);
-                }
-            }
-
-            if thread.is_none() {
-                if let Some(guard) = self.thread.try_lock() {
-                    thread = Some(guard)
-                }
-            }
-        }
+        let context = self.context.try_lock().unwrap();
+        let thread = self.thread.try_lock().unwrap();
 
         ContextRef {
-            context: match context {
-                Some(guard) => guard,
-                None => self.context.lock(),
-            },
-            lock: &self.locked,
-            thread: match thread {
-                Some(guard) => guard,
-                None => self.thread.lock(),
-            },
+            context,
+            lock: &self.lock,
+            thread,
+        }
+    }
+
+    fn lock_blocking(&self) -> ContextRef {
+        self.lock.send_replace(Lock::Aquire);
+        while *self.lock.borrow() != Lock::Locked {}
+
+        let context = self.context.try_lock().unwrap();
+        let thread = self.thread.try_lock().unwrap();
+
+        ContextRef {
+            context,
+            lock: &self.lock,
+            thread,
         }
     }
 
@@ -152,11 +150,19 @@ impl AudioServer for Pulse {
                 Err(e) => sender.emit(Message::Error(e.into())),
             };
 
-            if self.locked.compare_exchange(Lock::Aquire as u8, Lock::Locked as u8, Ordering::AcqRel, Ordering::Relaxed).is_ok() {
+            if self.lock.send_if_modified(|lock| {
+                match *lock == Lock::Aquire {
+                    true => {
+                        *lock = Lock::Locked;
+                        true
+                    }
+                    false => false,
+                }
+            }) {
                 std::thread::park();
 
                 if self.state.load(Ordering::Acquire) == State::Terminated as u8 {
-                    Pulse::MAINLOOP.with_borrow_mut(|mainloop| mainloop.quit(libpulse_binding::def::Retval(0)));
+                    Pulse::MAINLOOP.with_borrow_mut(|mainloop| mainloop.quit(Retval(0)));
                 }
             }
         }
@@ -167,7 +173,7 @@ impl AudioServer for Pulse {
     }
 
     fn disconnect(&self) {
-        let guard = self.lock();
+        let guard = self.lock_blocking();
         let mut context = guard.borrow_mut();
 
         context.set_state_callback(None);
@@ -177,7 +183,7 @@ impl AudioServer for Pulse {
         self.set_state(State::Terminated);
     }
 
-    fn request_software(&self, sender: Sender<Message>) -> Result<(), Error> {
+    async fn request_software(&self, sender: Sender<Message>) -> Result<(), Error> {
         if !self.is_connected() {
             return Err(PulseError::NotConnected.into())
         }
@@ -191,14 +197,14 @@ impl AudioServer for Pulse {
             }
         };
 
-        let guard = self.lock();
+        let guard = self.lock().await;
         let context = guard.borrow();
         context.introspect().get_sink_input_info_list(input_callback);
 
         Ok(())
     }
 
-    fn request_master(&self, sender: Sender<Message>) -> Result<(), Error> {
+    async fn request_master(&self, sender: Sender<Message>) -> Result<(), Error> {
         if !self.is_connected() {
             return Err(PulseError::NotConnected.into())
         }
@@ -210,14 +216,14 @@ impl AudioServer for Pulse {
             }
         };
 
-        let guard = self.lock();
+        let guard = self.lock().await;
         let context = guard.borrow();
         context.introspect().get_sink_info_by_index(0, sink_callback);
 
         Ok(())
     }
 
-    fn subscribe(&self, plan: Kind, sender: Sender<Message>) -> Result<(), Error> {
+    async fn subscribe(&self, plan: Kind, sender: Sender<Message>) -> Result<(), Error> {
         if !self.is_connected() {
             return Err(PulseError::NotConnected.into())
         }
@@ -235,7 +241,7 @@ impl AudioServer for Pulse {
         if plan.contains(Kind::Software) { mask |= InterestMaskSet::SINK_INPUT; }
         if plan.contains(Kind::Hardware) { mask |= InterestMaskSet::SINK;       }
 
-        let guard = self.lock();
+        let guard = self.lock().await;
         let mut context = guard.borrow_mut();
 
         context.set_subscribe_callback(Some(subscribe_callback));
@@ -453,14 +459,14 @@ fn state_callback(context: &Weak<Mutex<RefCell<Context>>>, state: &Weak<AtomicU8
 
 struct ContextRef<'a> {
     context: MutexGuard<'a, RefCell<Context>>,
-    lock: &'a AtomicU8,
+    lock: &'a watch::Sender<Lock>,
     thread: MutexGuard<'a, Thread>,
 }
 
 impl Drop for ContextRef<'_> {
     #[inline]
     fn drop(&mut self) {
-        self.lock.store(Lock::Unlocked as u8, Ordering::Release);
+        self.lock.send_replace(Lock::Unlocked);
         self.thread.unpark();
     }
 }

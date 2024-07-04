@@ -4,10 +4,10 @@ use std::rc::Rc;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
-use relm4::gtk;
-use relm4::once_cell::sync::OnceCell;
-use relm4::{ComponentParts, ComponentSender, Component, RelmWidgetExt, FactorySender};
+use relm4::{gtk, RelmWidgetExt, FactorySender};
+use relm4::component::{AsyncComponent, AsyncComponentSender, AsyncComponentParts};
 use relm4::factory::FactoryVecDeque;
+use relm4::once_cell::sync::OnceCell;
 use relm4::prelude::{DynamicIndex, FactoryComponent};
 
 use gtk::glib::{object::Cast, ControlFlow};
@@ -20,6 +20,8 @@ use tokio_util::sync::CancellationToken;
 use crate::anchor::Anchor;
 use crate::widgets;
 use crate::server::{self, AudioServer, AudioServerEnum, Client, Kind, Volume};
+
+pub static WM_CONFIG: OnceCell<WMConfig> = const { OnceCell::new() };
 
 pub struct App {
     server: Arc<AudioServerEnum>,
@@ -86,9 +88,6 @@ pub struct Config {
     pub width:   u32,
     pub height:  u32,
     pub spacing: Option<u16>,
-    pub anchors: Anchor,
-    pub margins: Vec<i32>,
-    pub keep: bool,
     pub max_volume: f64,
     pub show_icons: bool,
     pub horizontal: bool,
@@ -96,6 +95,12 @@ pub struct Config {
     pub show_corked: bool,
 
     pub server: AudioServerEnum,
+}
+
+pub struct WMConfig {
+    pub anchors: Anchor,
+    pub margins: Vec<i32>,
+    pub keep:    bool,
 }
 
 #[tracker::track]
@@ -399,8 +404,8 @@ impl FactoryComponent for Slider {
     }
 }
 
-#[relm4::component(pub)]
-impl Component for App {
+#[relm4::component(pub, async)]
+impl AsyncComponent for App {
     type Init = Config;
     type Input = Message;
     type Output = ();
@@ -427,7 +432,24 @@ impl Component for App {
         }
     }
 
-    fn init(config: Self::Init, window: Self::Root, sender: ComponentSender<Self>) -> ComponentParts<Self> {
+    fn init_loading_widgets(window: Self::Root) -> Option<relm4::loading_widgets::LoadingWidgets> {
+        let config = WM_CONFIG.get().unwrap();
+
+        #[cfg(feature = "Wayland")]
+        if crate::xdg::is_wayland() {
+            Self::init_wayland(&window, config.anchors, &config.margins, !config.keep);
+        }
+
+        #[cfg(feature = "X11")]
+        if crate::xdg::is_x11() {
+            window.connect_realize(move |w| Self::realize_x11(w, config.anchors, config.margins.clone()));
+        }
+
+        None
+    }
+
+    async fn init(config: Self::Init, window: Self::Root, sender: AsyncComponentSender<Self>) -> AsyncComponentParts<Self> {
+        let wm_config = WM_CONFIG.get().unwrap();
         let server = Arc::new(config.server);
 
         sender.spawn_command({
@@ -446,8 +468,8 @@ impl Component for App {
             .forward(sender.input_sender(), std::convert::identity);
 
         let direction = match config.horizontal {
-            true  if config.anchors.contains(Anchor::Right) => GrowthDirection::TopLeft,
-            false if config.anchors.contains(Anchor::Bottom) => GrowthDirection::TopLeft,
+            true  if wm_config.anchors.contains(Anchor::Right) => GrowthDirection::TopLeft,
+            false if wm_config.anchors.contains(Anchor::Bottom) => GrowthDirection::TopLeft,
             _ => GrowthDirection::BottomRight,
         };
 
@@ -467,20 +489,10 @@ impl Component for App {
 
         let widgets = view_output!();
 
-        #[cfg(feature = "Wayland")]
-        if crate::xdg::is_wayland() {
-            Self::init_wayland(&window, config.anchors, &config.margins, !config.keep);
-        }
-
-        #[cfg(feature = "X11")]
-        if crate::xdg::is_x11() {
-            window.connect_realize(move |w| Self::realize_x11(w, config.anchors, config.margins.clone()));
-        }
-
         window.set_default_height(config.height as i32);
         window.set_default_width(config.width as i32);
 
-        if !config.keep {
+        if !wm_config.keep {
             let has_pointer = Rc::new(Cell::new(false));
 
             let controller = gtk::EventControllerMotion::new();
@@ -519,11 +531,10 @@ impl Component for App {
             server::Message::Timeout
         });
 
-        ComponentParts { model, widgets }
+        AsyncComponentParts { model, widgets }
     }
 
-    #[allow(unused_variables)]
-    fn update_cmd(&mut self, message: Self::CommandOutput, sender: ComponentSender<Self>, window: &Self::Root) {
+    async fn update_cmd(&mut self, message: Self::CommandOutput, sender: AsyncComponentSender<Self>, window: &Self::Root) {
         use server::Message::*;
 
         match message {
@@ -562,20 +573,28 @@ impl Component for App {
                 self.sliders.send(client.id, SliderMessage::ServerChange(client));
             }
             Ready => if !self.ready.replace(true) {
+                window.set_visible(true);
+
                 let mut plan = Kind::Software
                         .union(Kind::Out);
 
-                let sender = sender.command_sender();
+                sender.oneshot_command({
+                    let sender = sender.command_sender().clone();
+                    let server = self.server.clone();
+                    let master = self.master;
 
-                if self.master {
-                    plan |= Kind::Hardware; 
-                    self.server.request_master(sender.clone()).unwrap();
-                }
+                    async move {
+                        if master {
+                            plan |= Kind::Hardware;
+                            server.request_master(sender.clone()).await.unwrap();
+                        }
 
-                self.server.request_software(sender.clone()).unwrap();
-                self.server.subscribe(plan, sender.clone()).unwrap();
+                        server.request_software(sender.clone()).await.unwrap();
+                        server.subscribe(plan, sender).await.unwrap();
 
-                window.set_visible(true);
+                        server::Message::Timeout
+                    }
+                });
             }
             Timeout => window.set_visible(true),
             Error(e) => eprintln!("{e}"),
@@ -591,7 +610,7 @@ impl Component for App {
         }
     }
 
-    fn update(&mut self, message: Self::Input, sender: ComponentSender<Self>, _: &Self::Root) {
+    async fn update(&mut self, message: Self::Input, sender: AsyncComponentSender<Self>, _: &Self::Root) {
         use Message::*;
 
         match message {

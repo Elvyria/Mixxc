@@ -43,7 +43,7 @@ impl Volume {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Client {
     pub id: u32,
     pub name: String,
@@ -90,9 +90,9 @@ bitflags::bitflags! {
 pub trait AudioServer {
     fn connect(&self, sender: Sender<Message>) -> Result<(), Error>;
     fn disconnect(&self);
-    fn request_software(&self, sender: Sender<Message>) -> Result<(), Error>;
-    fn request_master(&self, sender: Sender<Message>) -> Result<(), Error>;
-    fn subscribe(&self, plan: Kind, sender: Sender<Message>) -> Result<(), Error>;
+    async fn request_software(&self, sender: Sender<Message>) -> Result<(), Error>;
+    async fn request_master(&self, sender: Sender<Message>) -> Result<(), Error>;
+    async fn subscribe(&self, plan: Kind, sender: Sender<Message>) -> Result<(), Error>;
     fn set_volume(&self, id: u32, kind: Kind, volume: Volume);
     fn set_mute(&self, id: u32, kind: Kind, flag: bool);
 }

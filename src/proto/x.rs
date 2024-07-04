@@ -1,6 +1,6 @@
 use std::rc::Rc;
 
-use relm4::{gtk, Component};
+use relm4::{gtk, component::AsyncComponent};
 
 use gtk::prelude::{Cast, NativeExt, WidgetExt, SurfaceExt};
 
@@ -15,8 +15,8 @@ use x11rb::x11_utils::Serialize;
 use crate::anchor::Anchor;
 use crate::app::App;
 
-impl App where Self: Component {
-    pub fn realize_x11(window: &<Self as Component>::Root, anchors: Anchor, margins: Vec<i32>) {
+impl App where Self: AsyncComponent {
+    pub fn realize_x11(window: &<Self as AsyncComponent>::Root, anchors: Anchor, margins: Vec<i32>) {
         let surface = window.surface().unwrap();
 
         let Ok(xsurface) = surface.downcast::<X11Surface>() else {
