@@ -12,8 +12,6 @@ use x11rb::protocol::xinerama::get_screen_size;
 use x11rb::protocol::xproto::{PropMode, AtomEnum, ClientMessageEvent, CLIENT_MESSAGE_EVENT, EventMask, ConnectionExt, ConfigureWindowAux};
 use x11rb::x11_utils::Serialize;
 
-use anyhow::Error;
-
 use crate::anchor::Anchor;
 use crate::app::App;
 
@@ -67,7 +65,7 @@ impl App where Self: Component {
 
 // Specification:
 // https://specifications.freedesktop.org/wm-spec/1.5/ar01s04.html
-fn set_wm_properties(conn: &impl Connection, atoms: AtomCollection, xid: u32) -> Result<(), Error> {
+fn set_wm_properties(conn: &impl Connection, atoms: AtomCollection, xid: u32) -> Result<(), ReplyError> {
     use x11rb::wrapper::ConnectionExt;
 
     conn.change_property32(PropMode::REPLACE,
@@ -91,7 +89,7 @@ fn set_wm_properties(conn: &impl Connection, atoms: AtomCollection, xid: u32) ->
     Ok(())
 }
 
-fn add_wm_states(conn: &impl Connection, atoms: AtomCollection, xid: u32) -> Result<(), Error> {
+fn add_wm_states(conn: &impl Connection, atoms: AtomCollection, xid: u32) -> Result<(), ReplyError> {
     add_wm_state(conn, xid, atoms, atoms._NET_WM_STATE_ABOVE, atoms._NET_WM_STATE_STICKY)?;
     add_wm_state(conn, xid, atoms, atoms._NET_WM_STATE_SKIP_TASKBAR, atoms._NET_WM_STATE_SKIP_PAGER)?;
 
