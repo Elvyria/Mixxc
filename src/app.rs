@@ -618,13 +618,13 @@ impl AsyncComponent for App {
 
         match message {
             VolumeChanged { id, kind, volume } => {
-                self.server.set_volume(id, kind, volume);
+                self.server.set_volume(id, kind, volume).await;
             },
             Remove { id } => {
                 self.sliders.remove(id);
             }
             SetMute { id, kind, flag } => {
-                self.server.set_mute(id, kind, flag);
+                self.server.set_mute(id, kind, flag).await;
             }
             InterruptClose => {
                 if let Some(shutdown) = self.shutdown.take() {
