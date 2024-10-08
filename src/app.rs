@@ -449,8 +449,9 @@ impl AsyncComponent for App {
     }
 
     async fn init(config: Self::Init, window: Self::Root, sender: AsyncComponentSender<Self>) -> AsyncComponentParts<Self> {
-        #[cfg(not(debug_assertions))]
-        glib::log_set_writer_func(|_, _| glib::LogWriterOutput::Handled);
+        if std::env::var("GTK_DEBUG").is_err() {
+            glib::log_set_writer_func(|_, _| glib::LogWriterOutput::Handled);
+        }
 
         let wm_config = WM_CONFIG.get().unwrap();
         let server = Arc::new(config.server);

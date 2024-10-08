@@ -12,10 +12,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 - Excessive number of updates on unrelated client fields, caused by a function that lowers peak.
-- Disabled useless GTK log messages in release builds.
 
 ### Changed
 - (CSS) Default foreground color is now less eye burning. (#FFFFFF -> #DDDDDD)
+- GTK log messages will not appear if `GTK_DEBUG` variable is not set.
 
 ## [0.2.2] - 2024-04-13
 
