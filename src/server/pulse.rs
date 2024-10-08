@@ -252,9 +252,8 @@ impl AudioServer for Pulse {
 
     fn set_volume(&self, id: u32, kind: Kind, volume: Volume) {
         if self.is_connected() {
-            let guard = self.context.lock();
-            let context = guard.borrow();
-            let mut introspect = context.introspect();
+            let context = self.lock_blocking();
+            let mut introspect = context.borrow().introspect();
 
             match kind {
                 k if k.contains(Kind::Out | Kind::Software) => {
@@ -270,9 +269,8 @@ impl AudioServer for Pulse {
 
     fn set_mute(&self, id: u32, kind: Kind, flag: bool) {
         if self.is_connected() {
-            let guard = self.context.lock();
-            let context = guard.borrow();
-            let mut introspect = context.introspect();
+            let context = self.lock_blocking();
+            let mut introspect = context.borrow().introspect();
 
             match kind {
                 k if k.contains(Kind::Out | Kind::Software) => {
