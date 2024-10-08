@@ -58,6 +58,10 @@ struct Args {
     #[argh(option, short = 'x', long = "max-volume")]
     max_volume: Option<u8>,
 
+    /// use only one volume slider for each system process
+    #[argh(switch, short = 'P', long = "per-process")]
+    per_process: bool,
+
     /// print version
     #[argh(switch, short = 'v')]
     version: bool,
@@ -114,6 +118,7 @@ fn main() -> Result<(), Error> {
         horizontal,
         master: args.master,
         show_corked: !args.active_only,
+        per_process: args.per_process,
 
         server: server::pulse::Pulse::new().into(),
     });

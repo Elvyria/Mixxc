@@ -46,6 +46,7 @@ impl Volume {
 #[derive(Debug, Clone)]
 pub struct Client {
     pub id: u32,
+    pub process: Option<u32>,
     pub name: String,
     pub description: String,
     pub icon: Option<String>,

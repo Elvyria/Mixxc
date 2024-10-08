@@ -15,6 +15,7 @@ use gtk::prelude::{ApplicationExt, GtkWindowExt, BoxExt, GestureSingleExt, Orien
 use gtk::pango::EllipsizeMode;
 use gtk::{Orientation, Align, Justification};
 
+use smallvec::SmallVec;
 use tokio_util::sync::CancellationToken;
 
 use crate::anchor::Anchor;
@@ -37,6 +38,7 @@ pub struct App {
 struct Sliders {
     container: FactoryVecDeque<Slider>,
     direction: GrowthDirection,
+    per_process: bool,
 }
 
 enum GrowthDirection {
@@ -47,6 +49,14 @@ enum GrowthDirection {
 impl Sliders {
     fn push_client(&mut self, client: Client) {
         let mut sliders = self.container.guard();
+
+        if self.per_process && client.process.is_some() {
+            if let Some(slider) = sliders.iter_mut().find(|slider| slider.process == client.process) {
+                slider.ids.push(client.id);
+
+                return
+            }
+        }
 
         match self.direction {
             GrowthDirection::TopLeft => sliders.push_front(client),
@@ -59,7 +69,7 @@ impl Sliders {
     fn remove(&mut self, id: u32) {
         let mut sliders = self.container.guard();
 
-        let pos = sliders.iter().position(|e| e.id == id);
+        let pos = sliders.iter().position(|e| e.ids.contains(&id));
         if let Some(pos) = pos {
             sliders.remove(pos);
         }
@@ -74,11 +84,11 @@ impl Sliders {
     fn contains(&self, id: u32) -> bool {
         self.container.borrow()
             .iter()
-            .any(|e| e.id == id)
+            .any(|e| e.ids.contains(&id))
     }
 
     fn send(&self, id: u32, message: SliderMessage) {
-        if let Some(index) = self.container.iter().position(|slider| slider.id == id) {
+        if let Some(index) = self.container.iter().position(|slider| slider.ids.contains(&id)) {
             self.container.send(index, message)
         }
     }
@@ -93,6 +103,7 @@ pub struct Config {
     pub horizontal: bool,
     pub master: bool,
     pub show_corked: bool,
+    pub per_process: bool,
 
     pub server: AudioServerEnum,
 }
@@ -105,7 +116,8 @@ pub struct WMConfig {
 
 #[tracker::track]
 struct Slider {
-    #[do_not_track] id: u32,
+    #[do_not_track] ids: SmallVec<[u32; 3]>,
+    #[do_not_track] process: Option<u32>,
     volume: Volume,
     volume_percent: u8,
     muted: bool,
@@ -123,8 +135,8 @@ struct Slider {
 
 #[derive(Debug)]
 pub enum Message {
-    SetMute { id: u32, kind: server::Kind, flag: bool },
-    VolumeChanged { id: u32, kind: server::Kind, volume: Volume, },
+    SetMute { ids: SmallVec<[u32; 3]>, kind: server::Kind, flag: bool },
+    VolumeChanged { ids: SmallVec<[u32; 3]>, kind: server::Kind, volume: Volume, },
     Remove { id: u32 },
     InterruptClose,
     Close
@@ -322,7 +334,8 @@ impl FactoryComponent for Slider {
         let volume_percent = (init.volume.percent() * 100.0) as u8;
 
         Self {
-            id: init.id,
+            ids: SmallVec::from_buf_and_len([init.id, 0, 0], 1),
+            process: init.process,
             name: init.name,
             description: init.description,
             icon: client_icon(init.icon, volume_percent, init.muted),
@@ -375,10 +388,10 @@ impl FactoryComponent for Slider {
 
                self.volume.set_percent(v);
 
-               let _ = sender.output(Message::VolumeChanged { id: self.id, kind: self.kind, volume: self.volume.clone() });
+               let _ = sender.output(Message::VolumeChanged { ids: self.ids.clone(), kind: self.kind, volume: self.volume.clone() });
            },
            SliderMessage::Mute => {
-               let _ = sender.output(Message::SetMute { id: self.id, kind: self.kind, flag: !self.muted });
+               let _ = sender.output(Message::SetMute { ids: self.ids.clone(), kind: self.kind, flag: !self.muted });
            },
            SliderMessage::Removed => {
                self.set_removed(true);
@@ -484,6 +497,7 @@ impl AsyncComponent for App {
             sliders: Sliders {
                 container: sliders,
                 direction,
+                per_process: config.per_process,
             },
             ready: Rc::new(Cell::new(false)),
             shutdown: None,
@@ -618,14 +632,18 @@ impl AsyncComponent for App {
         use Message::*;
 
         match message {
-            VolumeChanged { id, kind, volume } => {
-                self.server.set_volume(id, kind, volume).await;
+            VolumeChanged { ids, kind, volume } => {
+                for &id in ids.iter() {
+                    self.server.set_volume(id, kind, volume.clone()).await;
+                }
             },
             Remove { id } => {
                 self.sliders.remove(id);
             }
-            SetMute { id, kind, flag } => {
-                self.server.set_mute(id, kind, flag).await;
+            SetMute { ids, kind, flag } => {
+                for &id in ids.iter() {
+                    self.server.set_mute(id, kind, flag).await;
+                }
             }
             InterruptClose => {
                 if let Some(shutdown) = self.shutdown.take() {

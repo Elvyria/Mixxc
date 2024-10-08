@@ -8,6 +8,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 - New flag `-A` `--active` that hides paused clients.
+- New flag `-P` `--per-process` that combines sinks from the same process into a single one.  
+(This should help with WINE and browser applications, but might have unexpected side effects depending on the software)
 - (CSS) Default style now has an animation when hovering over or clicking a volume knob.
 
 ### Fixed

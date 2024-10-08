@@ -543,6 +543,8 @@ impl <'a> From<&SinkInputInfo<'a>> for Client {
         let name = sink_input.proplist.get_str("application.name").unwrap_or_default();
         let description = sink_input.name.as_ref().map(Cow::to_string).unwrap_or_default();
         let icon = sink_input.proplist.get_str("application.icon_name");
+        let process = sink_input.proplist.get_str("application.process.id")
+            .and_then(|b| b.parse::<u32>().ok());
 
         // This would be the correct approach, but things get weird after 255%
         // static VOLUME_MAX: OnceLock<f64> = OnceLock::new();
@@ -564,6 +566,7 @@ impl <'a> From<&SinkInputInfo<'a>> for Client {
 
         Client {
             id: sink_input.index,
+            process,
             name,
             description,
             icon,
@@ -605,6 +608,7 @@ impl <'a> From<&SinkInfo<'a>> for Client {
 
         Client {
             id: 0,
+            process: None,
             name: "Master".to_owned(),
             description,
             icon: None,
