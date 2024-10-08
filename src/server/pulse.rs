@@ -66,12 +66,12 @@ impl Pulse {
 
     #[inline]
     fn is_connected(&self) -> bool {
-        use num_traits::FromPrimitive;
+        self.state.load(Ordering::Acquire) == State::Ready as u8
+    }
 
-        // SAFETY: State is updated only through the context state pull in a callback
-        let state = unsafe { State::from_u8(self.state.load(Ordering::Acquire)).unwrap_unchecked() };
-
-        state == State::Ready
+    #[inline]
+    fn is_terminated(&self) -> bool {
+        self.state.load(Ordering::Acquire) == State::Terminated as u8
     }
 
     async fn lock(&self) -> ContextRef {
@@ -102,12 +102,28 @@ impl Pulse {
         }
     }
 
-    fn iterate(timeout: Duration) -> Result<u32, PulseError> {
+    fn iterate(timeout: &Duration) -> Result<u32, PulseError> {
         Self::MAINLOOP.with_borrow_mut(|mainloop| {
             mainloop.prepare(timeout.into()).map_err(PulseError::from)?;
             mainloop.poll().map_err(PulseError::from)?;
             mainloop.dispatch().map_err(PulseError::from)
         })
+    }
+
+    fn is_locked(&self) -> bool {
+        self.lock.send_if_modified(|lock| {
+            match *lock == Lock::Aquire {
+                true => {
+                    *lock = Lock::Locked;
+                    true
+                }
+                false => false,
+            }
+        })
+    }
+
+    fn quit() {
+        Self::MAINLOOP.with_borrow_mut(|mainloop| mainloop.quit(Retval(0)));
     }
 }
 
@@ -143,26 +159,20 @@ impl AudioServer for Pulse {
 
         *self.thread.lock() = std::thread::current();
 
+        let timeout = std::time::Duration::from_millis(1).into();
+
         loop {
-            match Pulse::iterate(std::time::Duration::from_millis(1).into()) {
+            match Pulse::iterate(&timeout) {
                 Ok(_) => {},
                 Err(PulseError::MainloopQuit) => break,
                 Err(e) => sender.emit(Message::Error(e.into())),
             };
 
-            if self.lock.send_if_modified(|lock| {
-                match *lock == Lock::Aquire {
-                    true => {
-                        *lock = Lock::Locked;
-                        true
-                    }
-                    false => false,
-                }
-            }) {
+            if self.is_locked() {
                 std::thread::park();
 
-                if self.state.load(Ordering::Acquire) == State::Terminated as u8 {
-                    Pulse::MAINLOOP.with_borrow_mut(|mainloop| mainloop.quit(Retval(0)));
+                if self.is_terminated() {
+                    Pulse::quit()
                 }
             }
         }
@@ -485,9 +495,9 @@ impl From<std::time::Duration> for Duration {
     fn from(d: std::time::Duration) -> Self { Self(d) }
 }
 
-impl From<Duration> for Option<libpulse_binding::time::MicroSeconds> {
+impl From<&Duration> for Option<libpulse_binding::time::MicroSeconds> {
     #[inline]
-    fn from(d: Duration) -> Self {
+    fn from(d: &Duration) -> Self {
         match d.0.is_zero() {
             false => Some(libpulse_binding::time::MicroSeconds(d.0.as_micros() as u64)),
             true => None,
