@@ -23,7 +23,7 @@ pub struct Volume {
 
 impl PartialEq for Volume {
     fn eq(&self, other: &Self) -> bool {
-        self.inner == other.inner
+        self.inner[0] == other.inner[0]
     }
 }
 
