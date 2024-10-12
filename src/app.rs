@@ -54,6 +54,11 @@ impl Sliders {
             if let Some(slider) = sliders.iter_mut().find(|slider| slider.process == client.process) {
                 slider.ids.push(client.id);
 
+                if !client.corked {
+                    slider.set_name(client.name);
+                    slider.set_description(client.description);
+                }
+
                 return
             }
         }
