@@ -51,13 +51,13 @@ impl Sliders {
         let mut sliders = self.container.guard();
 
         if self.per_process && client.process.is_some() {
-            if let Some(slider) = sliders.iter_mut().find(|slider| slider.process == client.process) {
-                slider.ids.push(client.id);
+            let pos = sliders.iter_mut().position(|slider| slider.process == client.process);
 
-                if !client.corked {
-                    slider.set_name(client.name);
-                    slider.set_description(client.description);
-                }
+            if let Some(i) = pos {
+                sliders.get_mut(i).unwrap().clients.push(SmallClient::from(&client));
+                sliders.drop();
+
+                self.container.send(i, SliderMessage::Refresh);
 
                 return
             }
@@ -74,12 +74,27 @@ impl Sliders {
     fn remove(&mut self, id: u32) {
         let mut sliders = self.container.guard();
 
-        let pos = sliders.iter().position(|e| e.ids.contains(&id));
-        if let Some(pos) = pos {
-            sliders.remove(pos);
-        }
+        let i = sliders.iter_mut().position(|slider| {
+            match slider.clients.iter().position(|client| client.id == id) {
+                Some(pos) => {
+                    slider.clients.remove(pos);
+                    true
+                }
+                None => false,
+            }
+        });
 
-        sliders.drop();
+        match i {
+            Some(i) if sliders.get(i).unwrap().clients.is_empty() => {
+                sliders.remove(i);
+                sliders.drop();
+            }
+            Some(i) => {
+                sliders.drop();
+                self.container.send(i, SliderMessage::Refresh);
+            }
+            _ => {}
+        }
     }
 
     fn clear(&mut self) {
@@ -87,13 +102,17 @@ impl Sliders {
     }
 
     fn contains(&self, id: u32) -> bool {
-        self.container.borrow()
+        self.container
             .iter()
-            .any(|e| e.ids.contains(&id))
+            .any(|e| e.clients.iter().any(|c| c.id == id))
+    }
+
+    fn position(&self, id: u32) -> Option<usize> {
+        self.container.iter().position(|slider| slider.clients.iter().any(|c| c.id == id))
     }
 
     fn send(&self, id: u32, message: SliderMessage) {
-        if let Some(index) = self.container.iter().position(|slider| slider.ids.contains(&id)) {
+        if let Some(index) = self.position(id) {
             self.container.send(index, message)
         }
     }
@@ -102,7 +121,7 @@ impl Sliders {
 pub struct Config {
     pub width:   u32,
     pub height:  u32,
-    pub spacing: Option<u16>,
+    pub spacing: i32,
     pub max_volume: f64,
     pub show_icons: bool,
     pub horizontal: bool,
@@ -121,21 +140,77 @@ pub struct WMConfig {
 
 #[tracker::track]
 struct Slider {
-    #[do_not_track] ids: SmallVec<[u32; 3]>,
+    #[do_not_track] clients: SmallVec<[SmallClient; 3]>,
     #[do_not_track] process: Option<u32>,
     volume: Volume,
     volume_percent: u8,
     muted: bool,
     corked: bool,
-    #[do_not_track] max: f64,
     name: String,
-    description: String,
     icon: Cow<'static, str>,
     #[no_eq] peak: f64,
     removed: bool,
-    #[do_not_track] show_corked: bool,
+    updated: bool,
+    #[do_not_track] max: f64,
     #[do_not_track] kind: server::Kind,
     #[do_not_track] corking: bool,
+}
+
+impl Slider {
+    fn is_corked(&self) -> bool {
+        self.clients.iter().all(|id| id.corked)
+    }
+
+    fn is_muted(&self) -> bool {
+        self.clients.iter().all(|id| id.muted)
+    }
+
+    fn description(&self) -> &str {
+        self.clients.iter().reduce(|acc, c| {
+            let a = acc.score();
+            let b = c.score();
+
+            match (a > b) || (a == b && c.id > acc.id) {
+                true => c,
+                false => acc,
+            }
+        })
+        .map(|client| client.description.as_str())
+        .unwrap_or_default()
+    }
+}
+
+#[derive(Default, Clone)]
+struct SmallClient {
+    id: u32,
+    description: String,
+    corked: bool,
+    muted: bool,
+}
+
+impl SmallClient {
+    fn score(&self) -> u8 {
+        (!self.corked as u8) << 3 |
+        (!self.muted  as u8) << 2 |
+        (!self.description.is_empty() as u8)
+    }
+}
+
+impl PartialEq for SmallClient {
+    fn eq(&self, other: &Self) -> bool {
+        self.id == other.id
+    }
+}
+
+impl From<&Client> for SmallClient {
+    fn from(c: &Client) -> Self {
+        Self {
+            id:          c.id,
+            description: c.description.clone(),
+            corked:      c.corked,
+            muted:       c.muted,
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -154,6 +229,7 @@ pub enum SliderMessage {
     Removed,
     ServerChange(Box<Client>),
     ServerPeak(f32),
+    Refresh,
 }
 
 #[derive(Debug)]
@@ -191,7 +267,12 @@ impl FactoryComponent for Slider {
             add_css_class: "client",
 
             #[track = "self.changed(Slider::corked())"]
-            set_visible: self.show_corked || !self.corked,
+            set_visible: {
+                let parent = root.parent().expect("Slider has a parent")
+                    .downcast::<widgets::SliderBox>().expect("Slider parent is a SliderBox");
+
+                !self.corked || parent.show_corked()
+            },
 
             #[track = "self.changed(Slider::removed())"]
             set_class_active: ("new", !self.removed),
@@ -200,7 +281,7 @@ impl FactoryComponent for Slider {
             set_class_active: ("removed", self.removed),
 
             #[track = "self.changed(Slider::muted())"]
-            set_class_active: ("muted", self.muted),
+            set_class_active: ("muted", self.is_muted()),
 
             gtk::Image {
                 add_css_class: "icon",
@@ -223,8 +304,8 @@ impl FactoryComponent for Slider {
 
                 #[name(description)]
                 gtk::Label {
-                    #[track = "self.changed(Slider::description())"]
-                    set_label: &self.description,
+                    #[track = "self.changed(Slider::updated())"]
+                    set_label: self.description(),
                     add_css_class: "description",
                     set_ellipsize: EllipsizeMode::End,
                 },
@@ -235,12 +316,11 @@ impl FactoryComponent for Slider {
                     gtk::Scale::with_range(Orientation::Horizontal, 0.0, self.max + 0.00004, 0.005) {
                         #[track = "self.changed(Slider::volume())"]
                         set_value: self.volume.percent(),
-                        set_slider_size_fixed: false,
+                        set_slider_size_fixed: true,
                         set_show_fill_level: true,
                         set_restrict_to_fill_level: false,
                         #[track = "self.changed(Slider::peak())"]
                         set_fill_level: self.peak,
-                        set_width_request: 1,
                         connect_value_changed[sender] => move |scale| {
                             sender.input(SliderMessage::ValueChange(scale.value()));
                         },
@@ -268,8 +348,6 @@ impl FactoryComponent for Slider {
     fn init_widgets(&mut self, _: &Self::Index, root: Self::Root, _: &<Self::ParentWidget as relm4::factory::FactoryView>::ReturnedWidget, sender: FactorySender<Self>) -> Self::Widgets {
         let parent = root.parent().expect("Slider has a parent")
             .downcast::<widgets::SliderBox>().expect("Slider parent is a SliderBox");
-
-        self.show_corked = parent.show_corked();
 
         let widgets = view_output!();
 
@@ -337,12 +415,16 @@ impl FactoryComponent for Slider {
         });
 
         let volume_percent = (init.volume.percent() * 100.0) as u8;
+        let clients = [
+            SmallClient::from(&init),
+            SmallClient::default(),
+            SmallClient::default()
+        ];
 
         Self {
-            ids: SmallVec::from_buf_and_len([init.id, 0, 0], 1),
+            clients: SmallVec::from_buf_and_len(clients, 1),
             process: init.process,
             name: init.name,
-            description: init.description,
             icon: client_icon(init.icon, volume_percent, init.muted),
             volume: init.volume,
             volume_percent,
@@ -352,8 +434,7 @@ impl FactoryComponent for Slider {
             peak: 0.0,
             removed: false,
             kind: init.kind,
-
-            show_corked: false,
+            updated: false,
 
             corking: false,
 
@@ -393,31 +474,48 @@ impl FactoryComponent for Slider {
 
                self.volume.set_percent(v);
 
-               let _ = sender.output(Message::VolumeChanged { ids: self.ids.clone(), kind: self.kind, volume: self.volume.clone() });
+               let _ = sender.output(Message::VolumeChanged {
+                   ids: self.clients.iter().map(|client| client.id).collect(),
+                   kind: self.kind,
+                   volume: self.volume.clone()
+               });
            },
            SliderMessage::Mute => {
-               let _ = sender.output(Message::SetMute { ids: self.ids.clone(), kind: self.kind, flag: !self.muted });
+               let _ = sender.output(Message::SetMute {
+                   ids: self.clients.iter().map(|client| client.id).collect(),
+                   kind: self.kind,
+                   flag: !self.is_muted()
+               });
            },
            SliderMessage::Removed => {
                self.set_removed(true);
            }
            SliderMessage::ServerChange(client) => {
+               if let Some(existing) = self.clients.iter_mut().find(|c| c.id == client.id) {
+                   *existing = client.as_ref().into();
+               }
+
                self.set_volume_percent((client.volume.percent() * 100.0) as u8);
                self.set_volume(client.volume);
-               self.set_muted(client.muted);
                self.set_name(client.name);
-               self.set_description(client.description);
+               self.set_muted(self.is_muted());
                self.set_icon(client_icon(client.icon, self.volume_percent, self.muted));
+               self.set_updated(true);
 
-               if !self.corking && (client.corked != self.corked) {
+               if !self.corking && (self.corked != self.is_corked()) {
                    sender.oneshot_command(async move {
                        tokio::time::sleep(Duration::from_millis(45)).await;
                        SliderCommand::Cork
                    })
                }
 
-               self.corking = client.corked != self.corked;
+               self.corking = self.corked != self.is_corked();
            },
+           SliderMessage::Refresh => {
+               self.set_muted(self.is_muted());
+               self.set_corked(self.is_corked());
+               self.set_updated(true);
+           }
        }
     }
 }
