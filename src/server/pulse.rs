@@ -260,37 +260,43 @@ impl AudioServer for Pulse {
         Ok(())
     }
 
-    async fn set_volume(&self, id: u32, kind: Kind, volume: Volume) {
+    async fn set_volume(&self, ids: impl IntoIterator<Item = u32>, kind: Kind, volume: Volume) {
         if self.is_connected() {
             let context = self.lock().await;
             let mut introspect = context.borrow().introspect();
 
-            match kind {
-                k if k.contains(Kind::Out | Kind::Software) => {
-                    introspect.set_sink_input_volume(id, &volume.into(), None);
-                },
-                k if k.contains(Kind::Out | Kind::Hardware) => {
-                    introspect.set_sink_volume_by_index(id, &volume.into(), None);
-                },
-                _ => {}
-            };
+            let volume: ChannelVolumes = volume.into();
+
+            for id in ids.into_iter() {
+                match kind {
+                    k if k.contains(Kind::Out | Kind::Software) => {
+                        introspect.set_sink_input_volume(id, &volume, None);
+                    },
+                    k if k.contains(Kind::Out | Kind::Hardware) => {
+                        introspect.set_sink_volume_by_index(id, &volume, None);
+                    },
+                    _ => {}
+                };
+            }
         }
     }
 
-    async fn set_mute(&self, id: u32, kind: Kind, flag: bool) {
+    async fn set_mute(&self, ids: impl IntoIterator<Item = u32>, kind: Kind, flag: bool) {
         if self.is_connected() {
             let context = self.lock().await;
             let mut introspect = context.borrow().introspect();
 
-            match kind {
-                k if k.contains(Kind::Out | Kind::Software) => {
-                    introspect.set_sink_input_mute(id, flag, None);
-                },
-                k if k.contains(Kind::Out | Kind::Hardware) => {
-                    introspect.set_sink_mute_by_index(id, flag, None);
-                },
-                _ => {}
-            };
+            for id in ids.into_iter() {
+                match kind {
+                    k if k.contains(Kind::Out | Kind::Software) => {
+                        introspect.set_sink_input_mute(id, flag, None);
+                    },
+                    k if k.contains(Kind::Out | Kind::Hardware) => {
+                        introspect.set_sink_mute_by_index(id, flag, None);
+                    },
+                    _ => {}
+                };
+            }
         }
     }
 }

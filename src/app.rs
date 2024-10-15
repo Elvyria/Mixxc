@@ -736,17 +736,13 @@ impl AsyncComponent for App {
 
         match message {
             VolumeChanged { ids, kind, volume } => {
-                for &id in ids.iter() {
-                    self.server.set_volume(id, kind, volume.clone()).await;
-                }
+                self.server.set_volume(ids, kind, volume).await;
             },
             Remove { id } => {
                 self.sliders.remove(id);
             }
             SetMute { ids, kind, flag } => {
-                for &id in ids.iter() {
-                    self.server.set_mute(id, kind, flag).await;
-                }
+                self.server.set_mute(ids, kind, flag).await;
             }
             InterruptClose => {
                 if let Some(shutdown) = self.shutdown.take() {

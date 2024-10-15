@@ -94,6 +94,6 @@ pub trait AudioServer {
     async fn request_software(&self, sender: Sender<Message>) -> Result<(), Error>;
     async fn request_master(&self, sender: Sender<Message>) -> Result<(), Error>;
     async fn subscribe(&self, plan: Kind, sender: Sender<Message>) -> Result<(), Error>;
-    async fn set_volume(&self, ids: u32, kind: Kind, volume: Volume);
-    async fn set_mute(&self, id: u32, kind: Kind, flag: bool);
+    async fn set_volume(&self, ids: impl IntoIterator<Item = u32>, kind: Kind, volume: Volume);
+    async fn set_mute(&self, ids: impl IntoIterator<Item = u32>, kind: Kind, flag: bool);
 }
