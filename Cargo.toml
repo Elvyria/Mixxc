@@ -1,6 +1,6 @@
 [package]
 name = "mixxc"
-version = "0.2.2"
+version = "0.2.3"
 authors = ["Elvyria <elvyria@tutanota.com>"]
 description = "Minimalistic volume mixer."
 repository = "https://github.com/Elvyria/mixxc"
@@ -8,7 +8,6 @@ license = "MIT"
 edition = "2021"
 
 [features]
-default = ["X11"]
 Wayland = ["dep:gtk4-layer-shell"]
 Sass = ["dep:grass"]
 X11 = ["dep:x11rb", "dep:gdk-x11"]
