@@ -112,7 +112,7 @@ fn main() -> Result<(), Error> {
     app.run_async::<app::App>(app::Config {
         width: args.width.unwrap_or(if horizontal { 65 } else { 350 }),
         height: args.height.unwrap_or(if horizontal { 350 } else { 30 }),
-        spacing: args.spacing,
+        spacing: args.spacing.unwrap_or(20) as i32,
         max_volume: args.max_volume.unwrap_or(100).max(1) as f64 / 100.0,
         show_icons: args.icon,
         horizontal,

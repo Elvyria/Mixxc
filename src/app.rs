@@ -536,7 +536,7 @@ impl AsyncComponent for App {
                 add_css_class:   "main",
                 set_has_icons:   config.show_icons,
                 set_show_corked: config.show_corked,
-                set_spacing:     config.spacing.map(i32::from).unwrap_or(20),
+                set_spacing:     config.spacing,
                 set_max_value:   config.max_volume,
                 set_orientation: if config.horizontal {
                     Orientation::Horizontal
