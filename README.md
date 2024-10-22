@@ -79,6 +79,12 @@ If you want to toggle window with a click of a button, Unix way is the way:
 pkill mixxc | mixxc
 ```
 
+### Troubleshooting
+To get GTK related messages a specific environment variable must be non empty.
+```sh
+GTK_DEBUG=1 mixxc
+```
+
 ## Dependencies
 * [GTK4](https://www.gtk.org/)
 * [gtk4-layer-shell](https://github.com/wmww/gtk4-layer-shell) (Feature: Wayland)
