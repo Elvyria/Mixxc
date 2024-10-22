@@ -54,15 +54,14 @@ ${XDG_CONFIG_HOME:-$HOME/.config}/mixxc/style.scss
 
 ## Environment
 Mixxc is developed and tested with: 
-* Wayland
-* Hyprland
-* PipeWire
+* Wayland (Hyprland): `0.44.1`
+* PipeWire: `1.2.5`
 
 If your setup is different and you experience issues, feel free to file a bug report.
 
 ## Tips
 ### Startup Time
-If startup seems a bit slow, try this:
+If startup seems a bit slow or memory usage seems a bit too high try this:
 ```sh
 GSK_RENDERER=cairo GTK_USE_PORTAL=0 mixxc
 ```
