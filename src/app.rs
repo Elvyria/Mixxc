@@ -151,7 +151,6 @@ struct Slider {
     #[no_eq] peak: f64,
     removed: bool,
     updated: bool,
-    #[do_not_track] max: f64,
     #[do_not_track] kind: server::Kind,
     #[do_not_track] corking: bool,
 }
@@ -313,7 +312,7 @@ impl FactoryComponent for Slider {
                 #[name(scale_wrapper)]
                 gtk::Box {
                     #[name(scale)] // 0.00004 is a rounding error
-                    gtk::Scale::with_range(Orientation::Horizontal, 0.0, self.max + 0.00004, 0.005) {
+                    gtk::Scale::with_range(Orientation::Horizontal, 0.0, parent.max_value() + 0.00004, 0.005) {
                         #[track = "self.changed(Slider::volume())"]
                         set_value: self.volume.percent(),
                         set_slider_size_fixed: true,
@@ -430,7 +429,6 @@ impl FactoryComponent for Slider {
             volume_percent,
             muted: init.muted,
             corked: init.corked,
-            max: init.max_volume,
             peak: 0.0,
             removed: false,
             kind: init.kind,
@@ -539,6 +537,7 @@ impl AsyncComponent for App {
                 set_has_icons:   config.show_icons,
                 set_show_corked: config.show_corked,
                 set_spacing:     config.spacing.map(i32::from).unwrap_or(20),
+                set_max_value:   config.max_volume,
                 set_orientation: if config.horizontal {
                     Orientation::Horizontal
                 } else {

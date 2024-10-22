@@ -21,6 +21,9 @@ pub struct SliderBox {
 
     #[property(get, set)]
     show_corked: Cell<bool>,
+
+    #[property(get, set)]
+    max_value: Cell<f64>,
 }
 
 impl WidgetImpl for SliderBox {}
