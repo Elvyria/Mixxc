@@ -29,10 +29,21 @@ l, left
 .It
 r, right
 .El
+.It Fl A , Fl \-active
+Sliders that are associated with paused media players will be hidden and reappear only when playback is resumed.
 .It Fl m , Fl \-margin Ar px
 Distance that window will keep from each anchor point respectively.
 .It Fl M , Fl \-master
 Show a volume slider for the default audio sink.
+.It Fl b , Fl \-bar Ar orientation
+Changes orientation of audio sliders.
+
+.Bl -bullet -compact
+.It
+h, horizontal
+.It
+v, vertical
+.El
 .It Fl u , Fl \-userstyle Ar file
 Specify path to userstyle. By default,
 .Nm
@@ -46,24 +57,19 @@ will attempt to read style file from $XDG_CONFIG_HOME/mixxc, with priority for C
 .It
 \&.sass (Feature: Sass)
 .El
-.It Fl x , Fl \-max\-volume Ar n
-Highest achievable volume level in percents. Minimum is 1. Default is 100. Maximum is 255.
-.It Fl b , Fl \-bar Ar orientation
-Changes orientation of audio sliders.
-
-.Bl -bullet -compact
-.It
-h, horizontal
-.It
-v, vertical
-.El
+.It Fl k , Fl \-keep
+Prevent window from closing itself. By default, window will be closed if focus is lost and mouse is no longer over it.
 .It Fl i , Fl \-icon
 Show icons that applications provide or display a generic reactive volume icon.
 If not all application icons are displayed properly, you might need to update icon cache
 .Xr gtk4-update-icon-cache 1
 or update $XDG_DATA_DIRS.
-.It Fl k , Fl \-keep
-Prevent window from closing itself. By default, window will be closed if focus is lost and mouse is no longer over it.
+.It Fl x , Fl \-max\-volume Ar n
+Highest achievable volume level in percents.
+.br
+Minimum is 1. Default is 100. Maximum is 255.
+.It Fl P , Fl \-per\-process
+Create only a single slider per system process and control all related sinks through it, keeping all clients with the same volume state.
 .It Fl v , Fl \-version
 Print version information.
 .It Fl \-help
@@ -122,10 +128,10 @@ Elvyria <elvyria@tutanota.com>
 .It
 Muted playback removes audio sink and discards playback description information when unmuted.
 .It
-Jumping to any part of playback results in `Remove <-> Create` request instead of `Modify`.
+Jumping to any part of a video playback results in `Remove <-> Create` request instead of `Modify`, while jumping to any part of an audio playback works as expected.
 .It
 Volume levels are never requested from audio server, this causes desynchronization between volume levels.
 .El
 
-These problems are exclusive to Firefox and do not appear under Chromium based browsers.
+These problems are exclusive to Firefox and might not appear under Chromium based browsers.
 .El
