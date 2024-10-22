@@ -8,6 +8,7 @@ license = "MIT"
 edition = "2021"
 
 [features]
+default = ["X11"]
 Wayland = ["dep:gtk4-layer-shell"]
 Sass = ["dep:grass"]
 X11 = ["dep:x11rb", "dep:gdk-x11"]
@@ -40,7 +41,7 @@ features = ["xinerama"]
 
 [dependencies.gdk-x11]
 package = "gdk4-x11"
-version = "0.8"
+version = "0.9"
 optional = true
 features = ["xlib"]
 
