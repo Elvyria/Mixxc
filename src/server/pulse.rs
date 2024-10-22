@@ -168,11 +168,14 @@ impl AudioServer for Pulse {
                 Err(e) => sender.emit(Message::Error(e.into())),
             };
 
-            if self.is_locked() {
-                std::thread::park();
+            match self.is_locked() {
+                false => std::thread::yield_now(),
+                true => {
+                    std::thread::park();
 
-                if self.is_terminated() {
-                    Pulse::quit()
+                    if self.is_terminated() {
+                        Pulse::quit()
+                    }
                 }
             }
         }
