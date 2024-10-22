@@ -72,7 +72,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - List of sinks will now grow from bottom to top if window is anchored to bottom.
 - Minimal `rustc` version for compilation is now `1.75.0` due to [FileTimes](https://doc.rust-lang.org/std/fs/struct.FileTimes.html) stabilization.
 
-[unreleased]: https://github.com/Elvyria/Mixxc/compare/0.2.2...HEAD
+[unreleased]: https://github.com/Elvyria/Mixxc/compare/0.2.3...HEAD
+[0.2.3]: https://github.com/Elvyria/Mixxc/compare/0.2.2...0.2.3
 [0.2.2]: https://github.com/Elvyria/Mixxc/compare/0.2.1...0.2.2
 [0.2.1]: https://github.com/Elvyria/Mixxc/compare/0.2.0...0.2.1
 [0.2.0]: https://github.com/Elvyria/Mixxc/compare/0.1.10...0.2.0
