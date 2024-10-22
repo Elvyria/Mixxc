@@ -286,7 +286,7 @@ impl FactoryComponent for Slider {
                 add_css_class: "icon",
                 set_use_fallback: false,
                 #[track = "self.changed(Slider::icon())"]
-                set_from_icon_name: Some(&self.icon),
+                set_icon_name: Some(&self.icon),
                 set_visible: parent.has_icons(),
             },
 

@@ -98,7 +98,7 @@ fn main() -> Result<(), Error> {
 
     let app = relm4::RelmApp::new(crate::APP_ID).with_args(vec![]);
 
-    app.set_global_css(&style);
+    relm4::set_global_css(&style);
 
     // Vertically oriented bars imply that we are stacking clients horizontally
     let horizontal = args.bar.unwrap_or_default().starts_with('v');

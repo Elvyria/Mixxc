@@ -17,20 +17,20 @@ Accent = ["dep:zbus"]
 [dependencies]
 thiserror = "1.0"
 argh = "0.1"
-bitflags = "2.5"
-gtk4-layer-shell = { version = "0.3", optional = true }
+bitflags = "2.6"
+gtk4-layer-shell = { version = "0.4", optional = true }
 tracker = "0.2"
 enum_dispatch = "0.3"
 grass = { version = "0.13", package = "grass_compiler", optional = true }
-color-print = "0.3.5"
-tokio-util = "0.7.10"
+color-print = "0.3.6"
+tokio-util = "0.7.12"
 smallvec = { version = "1.13", features = ["union"] }
 num-traits = "0.2"
 parking_lot = "0.12.3"
-glib = "0.19"
+glib = "0.20"
 
 [dependencies.tokio]
-version = "1.37"
+version = "1.40"
 features = ["time", "macros"]
 
 [dependencies.x11rb]
@@ -45,17 +45,17 @@ optional = true
 features = ["xlib"]
 
 [dependencies.relm4]
-version = "0.8.1"
+version = "0.9.1"
 default-features = false
 features = ["macros"]
 
 [dependencies.libpulse-binding]
-version = "2.0"
+version = "2.28"
 default-features = false
 features = ["pa_v8"]
 
 [dependencies.zbus]
-version = "4"
+version = "5"
 default-features = false
 features = ["tokio"]
 optional = true
