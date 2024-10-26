@@ -552,7 +552,7 @@ impl AsyncComponent for App {
 
         #[cfg(feature = "Wayland")]
         if crate::xdg::is_wayland() {
-            Self::init_wayland(&window, config.anchors, &config.margins, !config.keep);
+            window.connect_realize(move |w| Self::init_wayland(w, config.anchors, &config.margins, !config.keep));
         }
 
         #[cfg(feature = "X11")]
