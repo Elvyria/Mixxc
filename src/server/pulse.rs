@@ -24,6 +24,9 @@ use super::{AudioServer, Client, Kind, Message, Volume};
 type Pb<T> = Pin<Box<T>>;
 type Peakers = Vec<Pb<Stream>>;
 
+type WeakContext = Weak<Mutex<RefCell<Context>>>;
+type WeakPeakers = Weak<Mutex<RefCell<Peakers>>>;
+
 pub struct Pulse {
     context: Arc<Mutex<RefCell<Context>>>,
     peakers: Arc<Mutex<RefCell<Peakers>>>,
@@ -304,7 +307,7 @@ impl AudioServer for Pulse {
     }
 }
 
-fn add_sink_input(info: ListResult<&SinkInputInfo>, context: &Weak<Mutex<RefCell<Context>>>, sender: &Sender<Message>, peakers: &Weak<Mutex<RefCell<Peakers>>>)
+fn add_sink_input(info: ListResult<&SinkInputInfo>, context: &WeakContext, sender: &Sender<Message>, peakers: &WeakPeakers)
 {
     let Some(context) = context.upgrade() else { return };
     let Some(peakers) = peakers.upgrade() else { return };
@@ -393,7 +396,7 @@ fn create_peeker(context: &mut Context, sender: &Sender<Message>, i: u32) -> Opt
     Some(stream)
 }
 
-fn subscribe_callback(sender: &Sender<Message>, context: &Weak<Mutex<RefCell<Context>>>, peakers: &Weak<Mutex<RefCell<Peakers>>>, facility: Option<Facility>, op: Option<Operation>, i: u32) {
+fn subscribe_callback(sender: &Sender<Message>, context: &WeakContext, peakers: &WeakPeakers, facility: Option<Facility>, op: Option<Operation>, i: u32) {
     let Some(context) = context.upgrade() else { return };
     let Some(op) = op else { return };
 
@@ -453,7 +456,7 @@ fn subscribe_callback(sender: &Sender<Message>, context: &Weak<Mutex<RefCell<Con
     }
 }
 
-fn state_callback(context: &Weak<Mutex<RefCell<Context>>>, state: &Weak<AtomicU8>, sender: &Sender<Message>) {
+fn state_callback(context: &WeakContext, state: &Weak<AtomicU8>, sender: &Sender<Message>) {
     let Some(context) = context.upgrade() else { return };
 
     let guard = context.lock();
