@@ -16,6 +16,42 @@ window {
 	background-color: @bg;
 }
 
+.side {
+	background-color: @bg;
+}
+
+.side .output {
+	color: @fg;
+	transition: background 750ms;
+	padding: 5px;
+}
+
+.side .output.master {
+	background: shade(@accent, 0.4);
+	transition: background 0ms;
+}
+
+.side .output {
+	padding: 5px;
+}
+
+.side .output.master:hover {
+	background: shade(@accent, 0.4);
+}
+
+.side .output:hover {
+	background: @accent;
+}
+
+.side .output:active {
+	background: shade(@accent, 1.1);
+}
+
+.side .output .icon {
+	-gtk-icon-style: symbolic;
+	-gtk-icon-size: 16px;
+}
+
 .main {
 	margin: 20px;
 }

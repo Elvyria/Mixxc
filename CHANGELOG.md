@@ -6,6 +6,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added
+- New sidebar to quickly swap between audio outputs.
+
 ### Fixed
 - Layershell initialization before window is realized, which could prevent a successful launch under certain conditions.
 - Missing bracket in the default `.scss` style.

@@ -3,7 +3,7 @@ pub mod pipewire;
 pub mod pulse;
 pub mod error;
 
-use std::fmt::Debug;
+use derive_more::derive::{Debug, Deref, DerefMut};
 
 use enum_dispatch::enum_dispatch;
 use relm4::Sender;
@@ -14,22 +14,23 @@ use error::Error;
 use self::pipewire::Pipewire;
 use self::pulse::Pulse;
 
-#[derive(Clone)]
+#[derive(Debug, Clone, Deref, DerefMut)]
+pub struct VolumeLevels(smallvec::SmallVec<[u32; 2]>);
+
+#[derive(Debug, Clone)]
 pub struct Volume {
-    inner: smallvec::SmallVec<[u32; 2]>,
+    pub levels: VolumeLevels,
+
+    #[debug(skip)]
     percent: &'static (dyn Fn(&Self) -> f64 + Sync),
+
+    #[debug(skip)]
     set_percent: &'static (dyn Fn(&mut Self, f64) + Sync),
 }
 
 impl PartialEq for Volume {
     fn eq(&self, other: &Self) -> bool {
-        self.inner[0] == other.inner[0]
-    }
-}
-
-impl Debug for Volume {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        self.inner.fmt(f)
+        self.levels[0] == other.levels[0]
     }
 }
 
@@ -44,7 +45,7 @@ impl Volume {
 }
 
 #[derive(Debug, Clone)]
-pub struct Client {
+pub struct OutputClient {
     pub id: u32,
     pub process: Option<u32>,
     pub name: String,
@@ -57,17 +58,48 @@ pub struct Client {
     pub kind: Kind,
 }
 
+#[derive(Debug, Clone)]
+pub struct Output {
+    pub name: String,
+    pub port: String,
+    pub master: bool,
+}
+
 #[derive(Debug)]
 pub enum Message {
-    New(Box<Client>),
-    Changed(Box<Client>),
-    Removed(u32),
-    Peak(u32, f32),
+    Output(MessageOutput),
+    OutputClient(MessageClient),
+    Disconnected(Option<Error>),
+    Error(Error),
+    Quit,
     Ready,
     Timeout,
-    Error(Error),
-    Disconnected(Option<Error>),
-    Quit,
+}
+
+#[derive(Debug)]
+pub enum MessageClient {
+    New(Box<OutputClient>),
+    Changed(Box<OutputClient>),
+    Removed(u32),
+    Peak(u32, f32),
+}
+
+impl From<MessageClient> for Message {
+    fn from(msg: MessageClient) -> Self {
+        Message::OutputClient(msg)
+    }
+}
+
+#[derive(Debug)]
+pub enum MessageOutput {
+    New(Output),
+    Master(Output),
+}
+
+impl From<MessageOutput> for Message {
+    fn from(msg: MessageOutput) -> Self {
+        Message::Output(msg)
+    }
 }
 
 #[enum_dispatch]
@@ -93,7 +125,9 @@ pub trait AudioServer {
     fn disconnect(&self);
     async fn request_software(&self, sender: Sender<Message>) -> Result<(), Error>;
     async fn request_master(&self, sender: Sender<Message>) -> Result<(), Error>;
+    async fn request_outputs(&self, sender: Sender<Message>) -> Result<(), Error>;
     async fn subscribe(&self, plan: Kind, sender: Sender<Message>) -> Result<(), Error>;
-    async fn set_volume(&self, ids: impl IntoIterator<Item = u32>, kind: Kind, volume: Volume);
+    async fn set_volume(&self, ids: impl IntoIterator<Item = u32>, kind: Kind, levels: VolumeLevels);
     async fn set_mute(&self, ids: impl IntoIterator<Item = u32>, kind: Kind, flag: bool);
+    async fn set_output_by_name(&self, name: &str, port: Option<&str>);
 }

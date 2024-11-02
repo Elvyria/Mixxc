@@ -1,6 +1,6 @@
 use std::rc::Rc;
 
-use relm4::{gtk, component::AsyncComponent};
+use relm4::component::AsyncComponent;
 
 use gtk::prelude::{Cast, NativeExt, WidgetExt, SurfaceExt};
 

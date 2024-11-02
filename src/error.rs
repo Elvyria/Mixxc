@@ -7,7 +7,7 @@ use thiserror::Error;
 #[macro_export]
 macro_rules! warnln {
     ($($arg:tt)*) => {{
-        println!("{}: {}", label::WARNING, format_args!($($arg)*))
+        println!("{}: {}", $crate::label::WARNING, format_args!($($arg)*))
     }};
 }
 

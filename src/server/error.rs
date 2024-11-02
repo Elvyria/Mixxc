@@ -31,6 +31,12 @@ pub enum PulseError {
     #[error("Quit the mainloop")]
     MainloopQuit,
 
+    #[error("Audio sink without a name will be ignored. ID: {0}")]
+    NamelessSink(u32),
+
+    #[error("Audio sink has a port without a name and will be ignored. ID: {0}")]
+    NamelessPort(u32),
+
     #[error("{0}")]
     Other(Code),
 }

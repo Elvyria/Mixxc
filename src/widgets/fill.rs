@@ -1,6 +1,5 @@
 use std::cell::Cell;
 
-use relm4::gtk;
 use gtk::glib;
 
 use glib::Properties;
