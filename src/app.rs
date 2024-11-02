@@ -232,10 +232,10 @@ impl AsyncComponent for App {
                     let master = self.master;
 
                     async move {
-                        server.request_outputs(sender.clone()).await.unwrap();
-
                         if master {
                             plan |= Kind::Hardware;
+
+                            server.request_outputs(sender.clone()).await.unwrap();
                             server.request_master(sender.clone()).await.unwrap();
                         }
 
