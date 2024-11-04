@@ -428,6 +428,7 @@ impl FactoryComponent for Slider {
                self.set_volume_percent((client.volume.percent() * 100.0) as u8);
                self.set_volume(client.volume);
                self.set_name(client.name);
+               self.set_muted(self.is_muted());
                self.set_icon(client_icon(client.icon, self.volume_percent, self.muted));
 
                if !self.corking && (self.corked != self.is_corked()) {

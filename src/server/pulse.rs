@@ -365,7 +365,7 @@ impl AudioServer for Pulse {
     }
 
     async fn set_mute(&self, ids: impl IntoIterator<Item = u32>, kind: Kind, flag: bool) {
-        if self.is_connected() {
+        if !self.is_connected() {
             return
         }
 
