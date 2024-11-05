@@ -5,7 +5,7 @@ use std::sync::{Arc, atomic::{AtomicU8, Ordering}, OnceLock, Weak};
 use std::thread::Thread;
 
 use libpulse_binding::callbacks::ListResult;
-use libpulse_binding::context::{self, introspect::{SinkInfo, SinkInputInfo}, subscribe::{Facility, InterestMaskSet, Operation}, Context, State};
+use libpulse_binding::context::{self, introspect::{Introspector, SinkInfo, SinkInputInfo}, subscribe::{Facility, InterestMaskSet, Operation}, Context, State};
 use libpulse_binding::def::{BufferAttr, PortAvailable, Retval};
 use libpulse_binding::mainloop::standard::Mainloop;
 use libpulse_binding::proplist::{properties::APPLICATION_NAME, Proplist};
@@ -217,9 +217,7 @@ impl AudioServer for Pulse {
             }
         };
 
-        let guard = self.lock().await;
-        let context = guard.borrow();
-
+        let context = self.lock().await;
         context.introspect().get_sink_input_info_list(input_callback);
 
         Ok(())
@@ -230,7 +228,7 @@ impl AudioServer for Pulse {
             return Err(PulseError::NotConnected.into())
         }
 
-        let callback = move |info: ListResult<&SinkInfo>| {
+        let sink_info_callback = move |info: ListResult<&SinkInfo>| {
             let ListResult::Item(info) = info else {
                 return
             };
@@ -266,8 +264,9 @@ impl AudioServer for Pulse {
         };
 
         let guard = self.lock().await;
-        let context = guard.borrow();
-        context.introspect().get_sink_info_list(callback);
+        let introspect = guard.introspect();
+
+        introspect.get_sink_info_list(sink_info_callback);
 
         Ok(())
     }
@@ -307,8 +306,7 @@ impl AudioServer for Pulse {
             }
         };
 
-        let guard = self.lock().await;
-        let context = guard.borrow();
+        let context = self.lock().await;
         context.introspect().get_sink_info_by_index(0, sink_callback);
 
         Ok(())
@@ -329,8 +327,15 @@ impl AudioServer for Pulse {
         });
 
         let mut mask = InterestMaskSet::NULL;
-        if plan.contains(Kind::Software) { mask |= InterestMaskSet::SINK_INPUT; }
-        if plan.contains(Kind::Hardware) { mask |= InterestMaskSet::SINK;       }
+
+        if plan.contains(Kind::Software) {
+            mask |= InterestMaskSet::SINK_INPUT;
+        }
+
+        if plan.contains(Kind::Hardware) {
+            mask |= InterestMaskSet::SINK;
+            mask |= InterestMaskSet::SERVER;
+        }
 
         let guard = self.lock().await;
         let mut context = guard.borrow_mut();
@@ -347,7 +352,7 @@ impl AudioServer for Pulse {
         }
 
         let context = self.lock().await;
-        let mut introspect = context.borrow().introspect();
+        let mut introspect = context.introspect();
 
         let volume: ChannelVolumes = levels.into();
 
@@ -370,7 +375,7 @@ impl AudioServer for Pulse {
         }
 
         let context = self.lock().await;
-        let mut introspect = context.borrow().introspect();
+        let mut introspect = context.introspect();
 
         for id in ids.into_iter() {
             match kind {
@@ -393,7 +398,7 @@ impl AudioServer for Pulse {
         let context = self.lock().await;
 
         if let Some(port) = port {
-            let mut introspect = context.borrow().introspect();
+            let mut introspect = context.introspect();
 
             introspect.set_sink_port_by_name(name, port, None);
         }
@@ -491,55 +496,65 @@ fn create_peeker(context: &mut Context, sender: &Sender<Message>, i: u32) -> Opt
     Some(stream)
 }
 
-fn subscribe_callback(sender: &Sender<Message>, context: &WeakContext, peakers: &WeakPeakers, facility: Option<Facility>, op: Option<Operation>, i: u32) {
-    let Some(context) = context.upgrade() else { return };
-    let Some(op) = op else { return };
+fn handle_server_change(sender: &Sender<Message>, context: &WeakContext) {
+    let Some(introspect) = try_introspect(context) else { return };
 
-    let guard = context.lock();
-    let _context = guard.borrow_mut();
-    let introspect = _context.introspect();
+    let context = context.clone();
+    let sender = sender.clone();
 
-    if let Some(Facility::Sink) = facility {
-        introspect.get_sink_info_by_index(0, {
-            let sender = sender.clone();
+    introspect.get_server_info(move |info| {
+        let Some(introspect) = try_introspect(&context) else { return };
+        let Some(name) = &info.default_sink_name else { return };
 
-            move |info| if let ListResult::Item(info) = info {
-                let client = Box::new(info.into());
-                let message = MessageClient::Changed(client);
+        let sender = sender.clone();
 
-                sender.emit(message.into());
+        let output_name = name.to_string();
 
-                let Some(output_name) = info.name.as_ref() else {
-                    let e = PulseError::NamelessSink(info.index).into();
-                    sender.emit(Message::Error(e));
+        introspect.get_sink_info_by_name(name, move |info| {
+            let ListResult::Item(info) = info else {
+                return
+            };
 
-                    return
-                };
+            let Some(port_name) = info.active_port.as_ref().and_then(|p| p.name.as_ref()) else {
+                return
+            };
 
-                let Some(port_name) = info.active_port.as_ref().and_then(|p| p.name.as_ref()) else {
-                    return
-                };
+            let output = Output {
+                name: output_name.to_string(),
+                port: port_name.to_string(),
+                master: true,
+            };
 
-                let output = Output {
-                    name: output_name.to_string(),
-                    port: port_name.to_string(),
-                    master: true,
-                };
+            let message = MessageOutput::Master(output);
 
-                let message = MessageOutput::Master(output);
-
-                sender.emit(message.into())
-            }
+            sender.emit(message.into());
         });
+    });
+}
 
-        return
-    }
+fn handle_sink_change(sender: &Sender<Message>, context: &WeakContext) {
+    let Some(introspect) = try_introspect(context) else { return };
+
+    introspect.get_sink_info_by_index(0, {
+        let sender = sender.clone();
+
+        move |info| if let ListResult::Item(info) = info {
+            let client = Box::new(info.into());
+            let message = MessageClient::Changed(client);
+
+            sender.emit(message.into());
+        }
+    });
+}
+
+fn handle_sink_input_change(sender: &Sender<Message>, context: &WeakContext, peakers: &WeakPeakers, op: Operation, i: u32) {
+    let Some(introspect) = try_introspect(context) else { return };
 
     match op {
         Operation::New => {
             introspect.get_sink_input_info(i, {
                 let sender = sender.clone();
-                let context = Arc::downgrade(&context);
+                let context = context.clone();
                 let peakers = peakers.clone();
 
                 move |info| add_sink_input(info, &context, &sender, &peakers)
@@ -575,6 +590,24 @@ fn subscribe_callback(sender: &Sender<Message>, context: &WeakContext, peakers: 
     }
 }
 
+fn subscribe_callback(sender: &Sender<Message>, context: &WeakContext, peakers: &WeakPeakers, facility: Option<Facility>, op: Option<Operation>, i: u32) {
+    let Some(op) = op else { return };
+
+    match facility {
+        Some(Facility::SinkInput) => {
+            handle_sink_input_change(sender, context, peakers, op, i);
+        },
+        Some(Facility::Sink) => {
+            handle_sink_change(sender, context);
+        }
+        Some(Facility::Server) => {
+            handle_server_change(sender, context);
+        },
+        _ => {},
+    }
+
+}
+
 fn state_callback(context: &WeakContext, state: &Weak<AtomicU8>, sender: &Sender<Message>) {
     let Some(context) = context.upgrade() else { return };
 
@@ -596,12 +629,28 @@ fn state_callback(context: &WeakContext, state: &Weak<AtomicU8>, sender: &Sender
     }
 }
 
+fn try_introspect(context: &WeakContext) -> Option<Introspector> {
+    let context = context.upgrade()?;
+
+    let guard = context.lock();
+    let context = guard.borrow_mut();
+
+    Some(context.introspect())
+}
+
 #[derive(Deref)]
 struct ContextRef<'a> {
     #[deref]
     context: MutexGuard<'a, RefCell<Context>>,
     lock: &'a watch::Sender<Lock>,
     thread: MutexGuard<'a, Thread>,
+}
+
+impl<'a> ContextRef<'a> {
+    fn introspect(&self) -> Introspector {
+        let context = self.borrow();
+        context.introspect()
+    }
 }
 
 impl Drop for ContextRef<'_> {
