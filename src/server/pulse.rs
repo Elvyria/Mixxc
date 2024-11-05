@@ -526,7 +526,10 @@ fn handle_server_change(sender: &Sender<Message>, context: &WeakContext) {
             };
 
             let message = MessageOutput::Master(output);
+            sender.emit(message.into());
 
+            let client = Box::new(info.into());
+            let message = MessageClient::Changed(client);
             sender.emit(message.into());
         });
     });
