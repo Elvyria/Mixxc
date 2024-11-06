@@ -8,6 +8,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 - New sidebar to quickly swap between audio outputs.
+- `.sass` and `.scss` styles will be compiled using the system `sass` compiler binary if `Sass` feature was not enabled at the compile time.  Style compilation time is much longer, but the resulting binary is around 2mb smaller in size. (https://sass-lang.com/install)
 
 ### Fixed
 - Layershell initialization before window is realized, which could prevent a successful launch under certain conditions.

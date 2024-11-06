@@ -15,7 +15,6 @@ pub fn config_dir() -> PathBuf {
     env_or_default("XDG_CONFIG_HOME", ".config")
 }
 
-#[cfg(feature = "Sass")]
 pub fn cache_dir() -> PathBuf {
     env_or_default("XDG_CACHE_HOME", ".cache")
 }

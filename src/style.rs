@@ -11,7 +11,6 @@ pub fn find(path: impl Into<PathBuf>) -> Result<Cow<'static, str>, Error> {
 
     path.push("style");
 
-    #[cfg(feature = "Sass")]
     for ext in ["scss", "sass"] {
         path.set_extension(ext);
 
@@ -48,7 +47,6 @@ pub fn read(path: impl AsRef<Path>) -> Result<Cow<'static, str>, Error> {
     let path = path.as_ref();
 
     match path.extension().and_then(OsStr::to_str) {
-        #[cfg(feature = "Sass")]
         Some("sass" | "scss") => compile_sass(path).map(Cow::Owned),
         Some("css") => {
             fs::read_to_string(path)
@@ -68,7 +66,6 @@ pub fn read(path: impl AsRef<Path>) -> Result<Cow<'static, str>, Error> {
     }
 }
 
-#[cfg(feature = "Sass")]
 fn compile_sass(style_path: impl AsRef<std::path::Path>) -> Result<String, Error> {
     use crate::{xdg, error};
 
@@ -96,7 +93,25 @@ fn compile_sass(style_path: impl AsRef<std::path::Path>) -> Result<String, Error
         }
     }
 
+    #[cfg(feature = "Sass")]
     let compiled = grass::from_path(style_path, &grass::Options::default()).map_err(StyleError::Sass)?;
+
+    #[cfg(not(feature = "Sass"))]
+    let compiled = {
+        let output = std::process::Command::new("sass")
+            .args(["--no-source-map", "-s", "expanded", &style_path.to_string_lossy()])
+            .output()
+            .map_err(|e| StyleError::SystemCompiler { e: Some(e), path: style_path.to_owned() })?;
+
+        let _ = std::io::stderr().write_all(&output.stderr);
+
+        if !output.status.success() {
+            let e = StyleError::SystemCompiler { e: None, path: style_path.to_owned() };
+            return Err(e.into())
+        }
+
+        unsafe { String::from_utf8_unchecked(output.stdout) }
+    };
 
     if let Err(e) = cache(cache_path, &compiled, style_mtime) {
         eprintln!("{e}");
@@ -105,7 +120,6 @@ fn compile_sass(style_path: impl AsRef<std::path::Path>) -> Result<String, Error
     Ok(compiled)
 }
 
-#[cfg(feature = "Sass")]
 fn cache(path: impl AsRef<Path>, style: &str, time: std::time::SystemTime) -> Result<(), crate::error::CacheError> {
     use crate::error::CacheError;
 

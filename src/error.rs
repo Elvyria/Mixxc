@@ -22,7 +22,6 @@ pub enum Error {
     #[error(transparent)]
     Style(#[from] StyleError),
 
-    #[cfg(feature = "Sass")]
     #[error(transparent)]
     Cache(#[from] CacheError),
 
@@ -63,27 +62,27 @@ pub enum StyleError {
     #[error("Unable to read a style file ({path})\n{e}")]
     Read { e: io::Error, path: PathBuf },
 
-    #[cfg(feature = "Sass")]
     #[error("Error while trying to get metadata ({path})\n{e}")]
     Meta { e: io::Error, path: PathBuf },
 
-    #[cfg(feature = "Sass")]
     #[error("Unable to read mtime of a style ({path})\n{e}")]
     MTime { e: io::Error, path: PathBuf},
 
     #[error("Unable to write a style to a file ({path})\n{e}")]
     Write { e: io::Error, path: PathBuf },
 
-    #[cfg(feature = "Sass")]
     #[error(transparent)]
     NotFound(io::Error),
+
+    #[cfg(not(feature = "Sass"))]
+    #[error("Couldn't compile a style using the system `sass` binary ({path})\n{e:?}")]
+    SystemCompiler { e: Option<io::Error>, path: PathBuf },
 
     #[cfg(feature = "Sass")]
     #[error(transparent)]
     Sass(#[from] Box<grass::Error>),
 }
 
-#[cfg(feature = "Sass")]
 #[derive(Error, Debug)]
 pub enum CacheError {
     #[error("Unable to create a cache file ({path})\n{e}")]
