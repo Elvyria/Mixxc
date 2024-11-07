@@ -37,6 +37,10 @@ jobs:
             patchelf --remove-rpath ${{ env.binary }}
           "
 
+      - name: Report MD5
+        run: |
+          md5sum -b ${{ env.binary }} | head -c 32
+
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
