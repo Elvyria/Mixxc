@@ -10,6 +10,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - New sidebar to quickly swap between audio outputs.
 - `.sass` and `.scss` styles will be compiled using the system `sass` compiler binary if `Sass` feature was not enabled at the compile time.  Style compilation time is much longer, but the resulting binary is around 2mb smaller in size. (https://sass-lang.com/install)
 
+### Changed
+- Default `.css` style is now automatically compiled from `.scss` to reduce the amount of syntax errors and ease the maintenance.
+
 ### Fixed
 - Layershell initialization before window is realized, which could prevent a successful launch under certain conditions.
 - Missing bracket in the default `.scss` style.
