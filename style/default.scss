@@ -17,35 +17,51 @@ window {
 }
 
 .side {
-    background-color: $bg;
+	$hide: false;
 
-    .output {
-        color: $fg;
-        transition: background 750ms;
-        padding: 5px;
+	background-color: $bg;
 
-        &.master {
-            background: shade($accent, 0.4);
-            transition: background 0ms;
-        }
+	.output {
+		color: $fg;
+		transition: background 750ms;
+		padding: 5px;
 
-        &.master:hover {
-            background: shade($accent, 0.4);
-        }
+		&.master {
+				background: shade($accent, 0.4);
+				transition: background 0ms;
+		}
 
-        .icon {
-            -gtk-icon-style: symbolic;
-            -gtk-icon-size: 16px;
-        }
-    }
+		&.master:hover {
+				background: shade($accent, 0.4);
+		}
 
-    .output:hover {
-        background: $accent;
-    }
+		.icon {
+				-gtk-icon-style: symbolic;
+				-gtk-icon-size: 16px;
+		}
+	}
 
-    .output:active {
-        background: shade($accent, 1.1);
-    }
+	.output:hover {
+		background: $accent;
+	}
+
+	.output:active {
+		background: shade($accent, 1.1);
+	}
+
+	@if $hide {
+		min-height: 0;
+		min-width:	0;
+
+		.output {
+			padding: 0;
+
+			.icon {
+				-gtk-icon-style: symbolic;
+				-gtk-icon-size: 0;
+			}
+		}
+	}
 }
 
 .main {
@@ -53,6 +69,9 @@ window {
 }
 
 .client {
+	$hide-name: false;
+	$hide-description: false;
+
 	color: $fg;
 	font-family: 'Noto Sans';
 	font-size: 1.1em;
@@ -63,15 +82,17 @@ window {
 		-gtk-icon-style: symbolic;
 	}
 
-	/* .name {
-		// Hide Application Name
-		font-size: 0;
-	} */
+	@if $hide-name {
+		.name {
+			font-size: 0;
+		}
+	}
 
-	/* .description {
-		// Hide Application Description
-		font-size: 0;
-	} */
+	@if $hide-description {
+		.description {
+			font-size: 0;
+		}
+	}
 
 	.volume {
 		/* Numeric Volume Level */
