@@ -13,7 +13,7 @@ jobs:
         target: [ x86_64-unknown-linux-gnu ]
     steps:
       - name: Prepare Environment
-        uses: cachix/install-nix-action@v25
+        uses: cachix/install-nix-action@v30
         with:
           nix_path: nixpkgs=channel:nixos-23.11-small
 
@@ -71,7 +71,7 @@ jobs:
           done
 
       - name: Release
-        uses: docker://antonyurchenko/git-release:v5
+        uses: docker://antonyurchenko/git-release:v6
         env:
           DRAFT_RELEASE: true
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
