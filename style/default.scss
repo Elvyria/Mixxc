@@ -1,38 +1,39 @@
 /* Please refer to GTK4 CSS specification */
 
 /* https://docs.gtk.org/gtk4/css-properties.html */
-$bg:     #161616;
-$fg:     #DDDDDD;
-$accent: #684EFF;
 
 * {
-	all: unset;
+	all:      unset;
+
+	--bg:     #161616;
+	--fg:     #DDDDDD;
+	--accent: #684EFF;
 }
 
 window {
-	border: 1px $accent solid;
+	border: 1px var(--accent) solid;
 	border-radius: 10px;
 
-	background-color: $bg;
+	background-color: var(--bg);
 }
 
 .side {
 	$hide: false;
 
-	background-color: $bg;
+	background-color: var(--bg);
 
 	.output {
-		color: $fg;
+		color: var(--fg);
 		transition: background 750ms;
 		padding: 5px;
 
 		&.master {
-				background: shade($accent, 0.4);
+				background: shade(var(--accent), 0.4);
 				transition: background 0ms;
 		}
 
 		&.master:hover {
-				background: shade($accent, 0.4);
+				background: shade(var(--accent), 0.4);
 		}
 
 		.icon {
@@ -42,11 +43,11 @@ window {
 	}
 
 	.output:hover {
-		background: $accent;
+		background: var(--accent);
 	}
 
 	.output:active {
-		background: shade($accent, 1.1);
+		background: shade(var(--accent), 1.1);
 	}
 
 	@if $hide {
@@ -72,12 +73,12 @@ window {
 	$hide-name: false;
 	$hide-description: false;
 
-	color: $fg;
+	color: var(--fg);
 	font-family: 'Noto Sans';
 	font-size: 1.1em;
 
 	.icon {
-		color: $fg;
+		color: var(--fg);
 
 		-gtk-icon-style: symbolic;
 	}
@@ -96,13 +97,13 @@ window {
 
 	.volume {
 		/* Numeric Volume Level */
-		color: $fg;
+		color: var(--fg);
 	}
 
 	scale {
 		trough {
 			/* Slider Bar */
-			background-color: lighter($bg);
+			background-color: lighter(var(--bg));
 			border-radius: 10px;
 
 			slider {
@@ -112,18 +113,18 @@ window {
 				border: none;
 				border-radius: 2px;
 
-				background-color: $accent;
+				background-color: var(--accent);
 				transition-duration: 400ms;
 			}
 
 			slider:hover {
 				/* Slider Knob */
-				background-color: shade($accent, 1.1);
+				background-color: shade(var(--accent), 1.1);
 			}
 
 			highlight {
 				/* Slider Bar Filled */
-				background-color: $accent;
+				background-color: var(--accent);
 
 				border: none;
 				border-radius: 10px;
@@ -147,7 +148,7 @@ window {
 	scale:active {
 		trough slider {
 			/* Slider Knob */
-			background-color: shade($accent, 1.1);
+			background-color: shade(var(--accent), 1.1);
 			transform: scale(1.1);
 		}
 	}
@@ -162,12 +163,12 @@ window {
 			trough {
 				slider {
 					/* Slider Knob */
-					background: shade($accent, 0.5);
+					background: shade(var(--accent), 0.5);
 				}
 
 				highlight {
 					/* Slider Bar Filled */
-					background: shade($accent, 0.5);
+					background: shade(var(--accent), 0.5);
 				}
 			}
 		}
@@ -211,8 +212,8 @@ window {
 
 			fill {
 				/* Slider Peak */
-				border-top: 1px solid rgba($accent, 0.8);
-				border-bottom: 1px solid rgba($accent, 0.8);
+				border-top: 1px solid #{'alpha(var(--accent), 0.8)'};
+				border-bottom: 1px solid #{'alpha(var(--accent), 0.8)'};
 			}
 		}
 	}
@@ -222,8 +223,8 @@ window {
 			trough {
 				fill {
 					/* Slider Peak */
-					border-top: 1px solid shade($accent, 0.5);
-					border-bottom: 1px solid shade($accent, 0.5);
+					border-top: 1px solid #{'alpha(var(--accent), 0.5)'};
+					border-bottom: 1px solid #{'alpha(var(--accent), 0.5)'};
 				}
 			}
 		}
@@ -288,8 +289,8 @@ window {
 
 			fill {
 				/* Slider Peak */
-				border-left: 1px solid rgba($accent, 0.8);
-				border-right: 1px solid rgba($accent, 0.8);
+				border-left: 1px solid #{'alpha(var(--accent), 0.8)'};
+				border-right: 1px solid #{'alpha(var(--accent), 0.8)'};
 			}
 		}
 	}
@@ -299,8 +300,8 @@ window {
 			trough {
 				fill {
 					/* Slider Peak */
-					border-left: 1px solid shade($accent, 0.5);
-					border-right: 1px solid shade($accent, 0.5);
+					border-left: 1px solid shade(var(--accent), 0.5);
+					border-right: 1px solid shade(var(--accent), 0.5);
 				}
 			}
 		}
