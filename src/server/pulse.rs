@@ -17,11 +17,10 @@ use derive_more::derive::{Deref, From};
 use parking_lot::{Mutex, MutexGuard};
 use smallvec::SmallVec;
 
-use relm4::Sender;
 use tokio::sync::watch;
 
 use super::error::{Error, PulseError};
-use super::{AudioServer, Kind, Message, MessageClient, MessageOutput, Output, OutputClient, Volume, VolumeLevels};
+use super::{AudioServer, Kind, Message, MessageClient, MessageOutput, Output, OutputClient, Sender, Volume, VolumeLevels};
 
 const DEFAULT_PEAK_RATE: u32 = 30;
 
@@ -135,13 +134,15 @@ impl Pulse {
 }
 
 impl AudioServer for Pulse {
-    fn connect(&self, sender: Sender<Message>) -> Result<(), Error> {
+    fn connect(&self, sender: impl Into<Sender<Message>>) -> Result<(), Error> {
         let mut proplist = Proplist::new().unwrap();
         proplist.set_str(APPLICATION_NAME, crate::APP_NAME).unwrap();
 
         self.context.lock().replace(Pulse::MAINLOOP.with_borrow(|mainloop| {
             Context::new_with_proplist(mainloop, "Mixxc Context", &proplist).unwrap()
         }));
+
+        let sender: Sender<Message> = sender.into();
 
         let state_callback = Box::new({
             let context = Arc::downgrade(&self.context);
@@ -203,10 +204,12 @@ impl AudioServer for Pulse {
         self.set_state(State::Terminated);
     }
 
-    async fn request_software(&self, sender: Sender<Message>) -> Result<(), Error> {
+    async fn request_software(&self, sender: impl Into<Sender<Message>>) -> Result<(), Error> {
         if !self.is_connected() {
             return Err(PulseError::NotConnected.into())
         }
+
+        let sender = sender.into();
 
         let input_callback = {
             let context = Arc::downgrade(&self.context);
@@ -223,10 +226,12 @@ impl AudioServer for Pulse {
         Ok(())
     }
 
-    async fn request_outputs(&self, sender: Sender<Message>) -> Result<(), Error> {
+    async fn request_outputs(&self, sender: impl Into<Sender<Message>>) -> Result<(), Error> {
         if !self.is_connected() {
             return Err(PulseError::NotConnected.into())
         }
+
+        let sender = sender.into();
 
         let sink_info_callback = move |info: ListResult<&SinkInfo>| {
             let ListResult::Item(info) = info else {
@@ -257,9 +262,8 @@ impl AudioServer for Pulse {
                     master: false,
                 };
 
-                let message = MessageOutput::New(output);
-
-                let _ = sender.send(message.into());
+                let msg: Message = MessageOutput::New(output).into();
+                sender.emit(msg);
             }
         };
 
@@ -271,17 +275,19 @@ impl AudioServer for Pulse {
         Ok(())
     }
 
-    async fn request_master(&self, sender: Sender<Message>) -> Result<(), Error> {
+    async fn request_master(&self, sender: impl Into<Sender<Message>>) -> Result<(), Error> {
         if !self.is_connected() {
             return Err(PulseError::NotConnected.into())
         }
 
+        let sender = sender.into();
+
         let sink_callback = move |info: ListResult<&SinkInfo>| {
             if let ListResult::Item(info) = info {
                 let client: Box<OutputClient> = Box::new(info.into());
-                let message: MessageClient = MessageClient::New(client);
+                let msg: Message = MessageClient::New(client).into();
 
-                sender.emit(message.into());
+                sender.emit(msg);
 
                 let Some(output_name) = info.name.as_ref() else {
                     let e = PulseError::NamelessSink(info.index).into();
@@ -300,9 +306,8 @@ impl AudioServer for Pulse {
                     master: true,
                 };
 
-                let message = MessageOutput::Master(output);
-
-                sender.emit(message.into())
+                let msg: Message = MessageOutput::Master(output).into();
+                sender.emit(msg)
             }
         };
 
@@ -312,10 +317,12 @@ impl AudioServer for Pulse {
         Ok(())
     }
 
-    async fn subscribe(&self, plan: Kind, sender: Sender<Message>) -> Result<(), Error> {
+    async fn subscribe(&self, plan: Kind, sender: impl Into<Sender<Message>>) -> Result<(), Error> {
         if !self.is_connected() {
             return Err(PulseError::NotConnected.into())
         }
+
+        let sender = sender.into();
 
         let subscribe_callback = Box::new({
             let context = Arc::downgrade(&self.context);
@@ -417,9 +424,9 @@ fn add_sink_input(info: ListResult<&SinkInputInfo>, context: &WeakContext, sende
 
         let client: Box<OutputClient> = Box::new(info.into());
         let id = client.id;
-        let message = MessageClient::New(client);
 
-        sender.emit(message.into());
+        let msg: Message = MessageClient::New(client).into();
+        sender.emit(msg);
 
         let guard = context.lock();
         let mut context = guard.borrow_mut();
@@ -440,9 +447,9 @@ fn peak_callback(stream: &mut Stream, sender: &Sender<Message>, i: u32) {
         Ok(PeekResult::Data(b)) => {
             let bytes: [u8; 4] = unsafe { b.try_into().unwrap_unchecked() };
             let peak: f32 = f32::from_ne_bytes(bytes);
-            let message = MessageClient::Peak(i, peak);
+            let msg: Message = MessageClient::Peak(i, peak).into();
 
-            if peak != 0.0 { sender.emit(message.into()); }
+            if peak != 0.0 { sender.emit(msg); }
         }
         Ok(PeekResult::Hole(_)) => {},
         _ => return,
@@ -525,12 +532,12 @@ fn handle_server_change(sender: &Sender<Message>, context: &WeakContext) {
                 master: true,
             };
 
-            let message = MessageOutput::Master(output);
-            sender.emit(message.into());
+            let msg: Message = MessageOutput::Master(output).into();
+            sender.emit(msg);
 
             let client = Box::new(info.into());
-            let message = MessageClient::Changed(client);
-            sender.emit(message.into());
+            let msg: Message = MessageClient::Changed(client).into();
+            sender.emit(msg);
         });
     });
 }
@@ -543,9 +550,9 @@ fn handle_sink_change(sender: &Sender<Message>, context: &WeakContext) {
 
         move |info| if let ListResult::Item(info) = info {
             let client = Box::new(info.into());
-            let message = MessageClient::Changed(client);
+            let msg: Message = MessageClient::Changed(client).into();
 
-            sender.emit(message.into());
+            sender.emit(msg);
         }
     });
 }
@@ -573,8 +580,8 @@ fn handle_sink_input_change(sender: &Sender<Message>, context: &WeakContext, pea
                 }
             }
 
-            let message = MessageClient::Removed(i);
-            sender.emit(message.into());
+            let msg: Message = MessageClient::Removed(i).into();
+            sender.emit(msg);
         },
         Operation::Changed => {
             introspect.get_sink_input_info(i, {
@@ -583,9 +590,9 @@ fn handle_sink_input_change(sender: &Sender<Message>, context: &WeakContext, pea
                 move |info| {
                     if let ListResult::Item(info) = info {
                         let client = Box::new(info.into());
-                        let message = MessageClient::Changed(client);
+                        let msg: Message = MessageClient::Changed(client).into();
 
-                        sender.emit(message.into());
+                        sender.emit(msg);
                     };
                 }
             });

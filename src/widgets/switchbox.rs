@@ -6,7 +6,7 @@ use gtk::{Align, Orientation};
 use gtk::glib::{self, Object};
 use gtk::prelude::{BoxExt, GestureSingleExt, OrientableExt, WidgetExt};
 
-use crate::app::Message;
+use crate::app::ElementMessage;
 use crate::server::Output;
 
 #[derive(Clone, Debug)]
@@ -21,7 +21,7 @@ pub struct Switches {
 }
 
 impl Switches {
-    pub fn new(sender: &Sender<Message>) -> Self {
+    pub fn new(sender: &Sender<ElementMessage>) -> Self {
         let container = FactoryVecDeque::builder()
             .launch(SwitchBox::default())
             .forward(sender, std::convert::identity);
@@ -61,7 +61,7 @@ pub struct Switch {
 impl FactoryComponent for Switch {
     type Init = Output;
     type Input = SwitchMessage;
-    type Output = Message;
+    type Output = ElementMessage;
     type ParentWidget = SwitchBox;
     type CommandOutput = ();
 
@@ -117,7 +117,7 @@ impl FactoryComponent for Switch {
         match message {
             SwitchMessage::Activate => self.set_active(true),
             SwitchMessage::Deactivate => self.set_active(false),
-            SwitchMessage::Click => sender.output_sender().emit(Message::SetOutput {
+            SwitchMessage::Click => sender.output_sender().emit(ElementMessage::SetOutput {
                 name: self.name.as_str().into(),
                 port: self.port.as_str().into(),
             })

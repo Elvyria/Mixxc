@@ -6,13 +6,42 @@ pub mod error;
 use derive_more::derive::{Debug, Deref, DerefMut};
 
 use enum_dispatch::enum_dispatch;
-use relm4::Sender;
 
 use error::Error;
 
 #[cfg(feature = "PipeWire")]
 use self::pipewire::Pipewire;
 use self::pulse::Pulse;
+
+pub struct InnerSender<T, U> {
+    sender: relm4::Sender<T>,
+    _message: std::marker::PhantomData<U>,
+}
+
+impl<T, U> InnerSender<T, U> {
+    #[inline]
+    pub fn emit(&self, message: impl Into<T>) {
+        self.sender.emit(message.into())
+    }
+
+    pub fn clone(&self) -> Self {
+        InnerSender {
+            sender: self.sender.clone(),
+            _message: self._message
+        }
+    }
+}
+
+impl<T, U> From<&relm4::Sender<T>> for InnerSender<T, U> {
+    fn from(sender: &relm4::Sender<T>) -> Self {
+        Self {
+            sender: sender.clone(),
+            _message: std::marker::PhantomData,
+        }
+    }
+}
+
+pub type Sender<T> = InnerSender<crate::app::CommandMessage, T>;
 
 #[derive(Debug, Clone, Deref, DerefMut)]
 pub struct VolumeLevels(smallvec::SmallVec<[u32; 2]>);
@@ -71,9 +100,7 @@ pub enum Message {
     OutputClient(MessageClient),
     Disconnected(Option<Error>),
     Error(Error),
-    Quit,
     Ready,
-    Timeout,
 }
 
 #[derive(Debug)]
@@ -121,12 +148,12 @@ bitflags::bitflags! {
 
 #[enum_dispatch(AudioServerEnum)]
 pub trait AudioServer {
-    fn connect(&self, sender: Sender<Message>) -> Result<(), Error>;
+    fn connect(&self, sender: impl Into<Sender<Message>>) -> Result<(), Error>;
     fn disconnect(&self);
-    async fn request_software(&self, sender: Sender<Message>) -> Result<(), Error>;
-    async fn request_master(&self, sender: Sender<Message>) -> Result<(), Error>;
-    async fn request_outputs(&self, sender: Sender<Message>) -> Result<(), Error>;
-    async fn subscribe(&self, plan: Kind, sender: Sender<Message>) -> Result<(), Error>;
+    async fn request_software(&self, sender: impl Into<Sender<Message>>) -> Result<(), Error>;
+    async fn request_master(&self, sender: impl Into<Sender<Message>>) -> Result<(), Error>;
+    async fn request_outputs(&self, sender: impl Into<Sender<Message>>) -> Result<(), Error>;
+    async fn subscribe(&self, plan: Kind, sender: impl Into<Sender<Message>>) -> Result<(), Error>;
     async fn set_volume(&self, ids: impl IntoIterator<Item = u32>, kind: Kind, levels: VolumeLevels);
     async fn set_mute(&self, ids: impl IntoIterator<Item = u32>, kind: Kind, flag: bool);
     async fn set_output_by_name(&self, name: &str, port: Option<&str>);

@@ -1,3 +1,4 @@
+use std::borrow::Cow;
 use std::cell::Cell;
 use std::rc::Rc;
 use std::sync::Arc;
@@ -42,6 +43,7 @@ pub struct Config {
     pub master: bool,
     pub show_corked: bool,
     pub per_process: bool,
+    pub userstyle: Option<std::path::PathBuf>,
 
     pub server: AudioServerEnum,
 }
@@ -53,21 +55,31 @@ pub struct WMConfig {
 }
 
 #[derive(Debug)]
-pub enum Message {
+pub enum ElementMessage {
     SetMute { ids: SmallVec<[u32; 3]>, kind: server::Kind, flag: bool },
-    SetVolume { ids: SmallVec<[u32; 3]>, kind: server::Kind, levels: VolumeLevels, },
+    SetVolume { ids: SmallVec<[u32; 3]>, kind: server::Kind, levels: VolumeLevels },
     SetOutput { name: Arc<str>, port: Arc<str> },
     Remove { id: u32 },
     InterruptClose,
     Close
 }
 
+#[derive(Debug, derive_more::From)]
+pub enum CommandMessage {
+    #[from]
+    Server(server::Message),
+    SetStyle(Cow<'static, str>),
+    Success,
+    Show,
+    Quit,
+}
+
 #[relm4::component(pub, async)]
 impl AsyncComponent for App {
     type Init = Config;
-    type Input = Message;
+    type Input = ElementMessage;
     type Output = ();
-    type CommandOutput = server::Message;
+    type CommandOutput = CommandMessage;
 
     view! {
         gtk::Window {
@@ -135,12 +147,32 @@ impl AsyncComponent for App {
         let wm_config = WM_CONFIG.get().unwrap();
         let server = Arc::new(config.server);
 
+        sender.oneshot_command(async move {
+            let style = match config.userstyle {
+                Some(p) => crate::style::read(p).await,
+                None    => {
+                    let config_dir = crate::config_dir().await.unwrap();
+                    crate::style::find(config_dir).await
+                },
+            };
+
+            let style = match style {
+                Ok(s) => s,
+                Err(e) => {
+                    eprintln!("{}", e);
+                    crate::style::default()
+                }
+            };
+
+            CommandMessage::SetStyle(style)
+        });
+
         sender.spawn_command({
             let server = server.clone();
 
             move |sender| {
-                match server.connect(sender.clone()){
-                    Ok(()) => sender.emit(server::Message::Disconnected(None)),
+                match server.connect(&sender) {
+                    Ok(()) => sender.emit(CommandMessage::Quit),
                     Err(e) => panic!("{e}"),
                 }
             }
@@ -186,10 +218,10 @@ impl AsyncComponent for App {
 
             window.connect_is_active_notify(move |window| {
                 if window.is_active() {
-                    sender.input(Message::InterruptClose);
+                    sender.input(ElementMessage::InterruptClose);
                 }
                 else if has_pointer.replace(false) {
-                    sender.input(Message::Close);
+                    sender.input(ElementMessage::Close);
                 }
             });
         }
@@ -208,60 +240,24 @@ impl AsyncComponent for App {
 
         sender.oneshot_command(async move {
             tokio::time::sleep(Duration::from_millis(10)).await;
-            server::Message::Timeout
+            CommandMessage::Show
         });
 
         AsyncComponentParts { model, widgets }
     }
 
     async fn update_cmd(&mut self, message: Self::CommandOutput, sender: AsyncComponentSender<Self>, window: &Self::Root) {
-        use server::Message::*;
-
         match message {
-            OutputClient(msg) => self.handle_msg_output_client(msg, sender, window),
-            Output(msg) => self.handle_msg_output(msg),
-            Ready => if !self.ready.replace(true) {
-                window.set_visible(true);
-
-                let mut plan = Kind::Software
-                        .union(Kind::Out);
-
-                sender.oneshot_command({
-                    let sender = sender.command_sender().clone();
-                    let server = self.server.clone();
-                    let master = self.master;
-
-                    async move {
-                        if master {
-                            plan |= Kind::Hardware;
-
-                            server.request_outputs(sender.clone()).await.unwrap();
-                            server.request_master(sender.clone()).await.unwrap();
-                        }
-
-                        server.request_software(sender.clone()).await.unwrap();
-                        server.subscribe(plan, sender).await.unwrap();
-
-                        server::Message::Timeout
-                    }
-                });
-            }
-            Timeout => window.set_visible(true),
-            Error(e) => eprintln!("{e}"),
-            Disconnected(Some(e)) => {
-                eprintln!("{e}");
-
-                self.server.disconnect();
-                self.ready.replace(false);
-                self.sliders.clear();
-            }
-            Disconnected(None) => relm4::main_application().quit(),
-            Quit => self.server.disconnect(),
+            CommandMessage::Server(msg) => self.handle_msg_cmd_server(msg, sender, window),
+            CommandMessage::SetStyle(style) => relm4::set_global_css(&style),
+            CommandMessage::Show => window.set_visible(true),
+            CommandMessage::Success => {},
+            CommandMessage::Quit => relm4::main_application().quit(),
         }
     }
 
     async fn update(&mut self, message: Self::Input, sender: AsyncComponentSender<Self>, _: &Self::Root) {
-        use Message::*;
+        use ElementMessage::*;
 
         match message {
             SetVolume { ids, kind, levels } => {
@@ -289,23 +285,64 @@ impl AsyncComponent for App {
                 self.shutdown = Some(CancellationToken::new());
                 let token = self.shutdown.as_ref().unwrap().clone();
 
-                sender.command(|sender, shutdown| {
-                    shutdown.register(async move {
-                        tokio::select! {
-                            _ = token.cancelled() => {}
-                            _ = tokio::time::sleep(Duration::from_millis(150)) => {
-                                sender.emit(server::Message::Quit);
-                            }
+                sender.oneshot_command(async move {
+                    tokio::select! {
+                        _ = token.cancelled() => CommandMessage::Success,
+                        _ = tokio::time::sleep(Duration::from_millis(150)) => {
+                            CommandMessage::Quit
                         }
-                    })
-                    .drop_on_shutdown()
-                });
+                    }
+                })
             }
         }
     }
 }
 
 impl App where App: AsyncComponent {
+    fn handle_msg_cmd_server(&mut self, message: server::Message, sender: AsyncComponentSender<Self>, window: &<App as AsyncComponent>::Root) {
+        use server::Message::*;
+
+        match message {
+            OutputClient(msg) => self.handle_msg_output_client(msg, sender, window),
+            Output(msg) => self.handle_msg_output(msg),
+            Ready => if !self.ready.replace(true) {
+                window.set_visible(true);
+
+                let mut plan = Kind::Software
+                        .union(Kind::Out);
+
+                sender.oneshot_command({
+                    let sender = sender.command_sender().clone();
+                    let server = self.server.clone();
+                    let master = self.master;
+
+                    async move {
+                        if master {
+                            plan |= Kind::Hardware;
+
+                            server.request_outputs(&sender).await.unwrap();
+                            server.request_master(&sender).await.unwrap();
+                        }
+
+                        server.request_software(&sender).await.unwrap();
+                        server.subscribe(plan, &sender).await.unwrap();
+
+                        CommandMessage::Success
+                    }
+                });
+            }
+            Error(e) => eprintln!("{e}"),
+            Disconnected(Some(e)) => {
+                eprintln!("{e}");
+
+                self.server.disconnect();
+                self.ready.replace(false);
+                self.sliders.clear();
+            }
+            Disconnected(None) => sender.command_sender().emit(CommandMessage::Quit),
+        }
+    }
+
     fn handle_msg_output_client(&mut self, message: MessageClient, sender: AsyncComponentSender<Self>, window: &<Self as AsyncComponent>::Root) {
         match message {
             MessageClient::Peak(id, peak) => {
@@ -336,7 +373,7 @@ impl App where App: AsyncComponent {
                     move |_, shutdown| {
                         shutdown.register(async move {
                             tokio::time::sleep(Duration::from_millis(300)).await;
-                            sender.emit(Message::Remove { id })
+                            sender.emit(ElementMessage::Remove { id })
                         })
                         .drop_on_shutdown()
                     }

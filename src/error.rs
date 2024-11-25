@@ -44,6 +44,9 @@ pub enum CLIError {
 
 #[derive(Error, Debug)]
 pub enum ConfigError {
+    #[error("Unable to access a config directory {path}\n{e}")]
+    Read { e: io::Error, path: PathBuf },
+
     #[error("Unable to create a config directory {path}\n{e}")]
     Create { e: io::Error, path: PathBuf },
 

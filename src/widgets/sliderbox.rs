@@ -15,7 +15,7 @@ use gtk::prelude::{BoxExt, GtkWindowExt, GestureSingleExt, OrientableExt, RangeE
 use smallvec::SmallVec;
 
 use crate::anchor::Anchor;
-use crate::app::Message;
+use crate::app::ElementMessage;
 use crate::server::{self, OutputClient, Volume};
 
 use super::GrowthDirection;
@@ -43,7 +43,7 @@ pub struct Sliders {
 }
 
 impl Sliders {
-    pub fn new(sender: &Sender<Message>) -> Self {
+    pub fn new(sender: &Sender<ElementMessage>) -> Self {
         let container = FactoryVecDeque::builder()
             .launch(SliderBox::default())
             .forward(sender, std::convert::identity);
@@ -183,7 +183,7 @@ impl Slider {
 impl FactoryComponent for Slider {
     type Init = server::OutputClient;
     type Input = SliderMessage;
-    type Output = Message;
+    type Output = ElementMessage;
     type ParentWidget = SliderBox;
     type CommandOutput = SliderCommand;
 
@@ -398,14 +398,14 @@ impl FactoryComponent for Slider {
 
                self.volume.set_percent(v);
 
-               let _ = sender.output(Message::SetVolume {
+               let _ = sender.output(ElementMessage::SetVolume {
                    ids: self.clients.iter().map(|client| client.id).collect(),
                    kind: self.kind,
                    levels: self.volume.levels.clone()
                });
            },
            SliderMessage::Mute => {
-               let _ = sender.output(Message::SetMute {
+               let _ = sender.output(ElementMessage::SetMute {
                    ids: self.clients.iter().map(|client| client.id).collect(),
                    kind: self.kind,
                    flag: !self.is_muted()

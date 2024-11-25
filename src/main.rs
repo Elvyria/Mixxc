@@ -1,4 +1,4 @@
-use std::{fs, path::PathBuf};
+use std::path::PathBuf;
 
 use error::{Error, ConfigError};
 use anchor::Anchor;
@@ -83,22 +83,7 @@ fn main() -> Result<(), Error> {
 
     warning(&args);
 
-    let style = match args.userstyle {
-        Some(p) => style::read(p),
-        None    => style::find(config_dir()?),
-    };
-
-    let style = match style {
-        Ok(s) => s,
-        Err(e) => {
-            eprintln!("{}", e);
-            style::default()
-        }
-    };
-
     let app = relm4::RelmApp::new(crate::APP_ID).with_args(vec![]);
-
-    relm4::set_global_css(&style);
 
     // Vertically oriented bars imply that we are stacking clients horizontally
     let horizontal = args.bar.unwrap_or_default().starts_with('v');
@@ -119,6 +104,7 @@ fn main() -> Result<(), Error> {
         master: args.master,
         show_corked: !args.active_only,
         per_process: args.per_process,
+        userstyle: args.userstyle,
 
         server: server::pulse::Pulse::new().into(),
     });
@@ -147,16 +133,23 @@ fn warning(args: &Args) {
     }
 }
 
-fn config_dir() -> Result<PathBuf, ConfigError> {
+pub async fn config_dir() -> Result<PathBuf, ConfigError> {
+    use tokio::fs;
+
     let mut dir = xdg::config_dir();
     dir.push(crate::APP_BINARY);
 
-    if !dir.exists() {
-        fs::create_dir(&dir).map_err(|e| ConfigError::Create { e, path: std::mem::take(&mut dir) })?;
-    }
+    let metadata = fs::metadata(&dir).await;
 
-    if !dir.is_dir() {
-        return Err(ConfigError::NotDirectory(dir))
+    match metadata {
+        Err(_) => {
+            fs::create_dir(&dir)
+                .await
+                .map_err(|e| ConfigError::Create { e, path: std::mem::take(&mut dir) })?;
+        },
+        Ok(metadata) => if !metadata.is_dir() {
+            return Err(ConfigError::NotDirectory(dir))
+        }
     }
 
     Ok(dir)
