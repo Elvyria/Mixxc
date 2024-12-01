@@ -70,6 +70,7 @@ pub enum CommandMessage {
     Server(server::Message),
     SetStyle(Cow<'static, str>),
     Success,
+    Connect,
     Show,
     Quit,
 }
@@ -167,15 +168,15 @@ impl AsyncComponent for App {
             CommandMessage::SetStyle(style)
         });
 
-        sender.spawn_command({
-            let server = server.clone();
+        App::connect(server.clone(), &sender);
 
-            move |sender| {
-                match server.connect(&sender) {
-                    Ok(()) => sender.emit(CommandMessage::Quit),
-                    Err(e) => panic!("{e}"),
-                }
-            }
+        sender.oneshot_command(async move {
+            use tokio::signal::*;
+
+            let mut stream = unix::signal(unix::SignalKind::interrupt()).unwrap();
+            stream.recv().await;
+
+            CommandMessage::Quit
         });
 
         let mut sliders = Sliders::new(sender.input_sender());
@@ -252,7 +253,11 @@ impl AsyncComponent for App {
             CommandMessage::SetStyle(style) => relm4::set_global_css(&style),
             CommandMessage::Show => window.set_visible(true),
             CommandMessage::Success => {},
-            CommandMessage::Quit => relm4::main_application().quit(),
+            CommandMessage::Connect => App::connect(self.server.clone(), &sender),
+            CommandMessage::Quit => {
+                self.server.disconnect();
+                relm4::main_application().quit();
+            },
         }
     }
 
@@ -299,6 +304,13 @@ impl AsyncComponent for App {
 }
 
 impl App where App: AsyncComponent {
+    fn connect(server: Arc<AudioServerEnum>, sender: &AsyncComponentSender<Self>) {
+        sender.spawn_command(move |sender| match server.connect(&sender) {
+            Ok(_) | Err(server::error::Error::AlreadyConnected) => {},
+            Err(e) => panic!("{e}"),
+        })
+    }
+
     fn handle_msg_cmd_server(&mut self, message: server::Message, sender: AsyncComponentSender<Self>, window: &<App as AsyncComponent>::Root) {
         use server::Message::*;
 
@@ -336,7 +348,9 @@ impl App where App: AsyncComponent {
                 eprintln!("{e}");
 
                 self.server.disconnect();
+
                 self.ready.replace(false);
+
                 self.sliders.clear();
                 self.switches.clear();
             }
@@ -344,7 +358,7 @@ impl App where App: AsyncComponent {
         }
     }
 
-    #[allow(ununsed_variables)]
+    #[allow(unused_variables)]
     fn handle_msg_output_client(&mut self, message: MessageClient, sender: AsyncComponentSender<Self>, window: &<Self as AsyncComponent>::Root) {
         match message {
             MessageClient::Peak(id, peak) => {

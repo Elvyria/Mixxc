@@ -36,6 +36,7 @@ pub struct Pulse {
     state:   Arc<AtomicU8>,
     lock:    watch::Sender<Lock>,
     thread:  Mutex<Thread>,
+    running: Mutex<()>,
 }
 
 #[repr(u8)]
@@ -62,6 +63,7 @@ impl Pulse {
             state:   Arc::new(AtomicU8::new(0)),
             lock:    watch::channel(Lock::Unlocked).0,
             thread:  Mutex::new(std::thread::current()),
+            running:      Mutex::new(()),
         }
     }
 
@@ -135,6 +137,10 @@ impl Pulse {
 
 impl AudioServer for Pulse {
     fn connect(&self, sender: impl Into<Sender<Message>>) -> Result<(), Error> {
+        if self.is_connected() {
+            return Err(Error::AlreadyConnected)
+        }
+
         let mut proplist = Proplist::new().unwrap();
         proplist.set_str(APPLICATION_NAME, crate::APP_NAME).unwrap();
 
@@ -168,6 +174,7 @@ impl AudioServer for Pulse {
         *self.thread.lock() = std::thread::current();
 
         let timeout = std::time::Duration::from_millis(1).into();
+        let _running = self.running.lock();
 
         loop {
             match Pulse::iterate(&timeout) {
@@ -194,14 +201,18 @@ impl AudioServer for Pulse {
     }
 
     fn disconnect(&self) {
-        let guard = self.lock_blocking();
-        let mut context = guard.borrow_mut();
+        {
+            let guard = self.lock_blocking();
+            let mut context = guard.borrow_mut();
 
-        context.set_state_callback(None);
-        context.disconnect();
+            context.set_state_callback(None);
+            context.disconnect();
 
-        // Context::disconnect manually calls state_callback and sets state to Terminated
-        self.set_state(State::Terminated);
+            // Context::disconnect manually calls state_callback and sets state to Terminated
+            self.set_state(State::Terminated);
+        }
+
+        let _running = self.running.lock();
     }
 
     async fn request_software(&self, sender: impl Into<Sender<Message>>) -> Result<(), Error> {

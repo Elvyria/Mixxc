@@ -7,6 +7,9 @@ use thiserror::Error;
 
 #[derive(Error)]
 pub enum Error {
+    #[error("Connection to the audio server is already established")]
+    AlreadyConnected,
+
     #[error(transparent)]
     Pulse(#[from] PulseError),
 }

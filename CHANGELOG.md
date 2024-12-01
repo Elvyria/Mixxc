@@ -19,6 +19,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ### Fixed
 - Layershell initialization before window is realized, which could prevent a successful launch under certain conditions.
 - Missing bracket in the default `.scss` style.
+- Audio server connection is now cleanly terminated when window is closed or if process recieves SIGINT signal. (should cure the sound popping)
 
 ## [0.2.3] - 2024-10-22
 
