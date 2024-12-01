@@ -11,7 +11,7 @@
 }
 
 window {
-	border: 1px var(--accent) solid;
+	border: 1px #{'alpha(var(--accent), 0.4)'} solid;
 	border-radius: 10px;
 
 	background-color: var(--bg);
@@ -75,7 +75,7 @@ window {
 
 	color: var(--fg);
 	font-family: 'Noto Sans';
-	font-size: 1.1em;
+	font-size: 1.0em;
 
 	.icon {
 		color: var(--fg);
@@ -124,14 +124,12 @@ window {
 
 			highlight {
 				/* Slider Bar Filled */
-				background-color: var(--accent);
-
 				border: none;
 				border-radius: 10px;
 
 				margin: 1px;
 
-				transition: background-color 300ms;
+				transition: background-image 300ms;
 			}
 
 			fill {
@@ -210,6 +208,11 @@ window {
 				margin-bottom: -7px;
 			}
 
+			highlight {
+				/* Slider Bar Filled */
+				background-image: linear-gradient(to left, shade(var(--accent), 0.6), var(--accent));
+			}
+
 			fill {
 				/* Slider Peak */
 				border-top: 1px solid #{'alpha(var(--accent), 0.8)'};
@@ -221,6 +224,11 @@ window {
 	&.muted {
 		scale {
 			trough {
+				highlight {
+					/* Slider Bar Filled */
+					background-image: linear-gradient(to left, shade(var(--accent), 0.3), shade(var(--accent), 0.7));
+				}
+
 				fill {
 					/* Slider Peak */
 					border-top: 1px solid #{'alpha(var(--accent), 0.5)'};
@@ -229,6 +237,7 @@ window {
 			}
 		}
 	}
+
 }
 
 @keyframes client-add-horizontal {
@@ -287,6 +296,11 @@ window {
 				min-width: 14px;
 			}
 
+			highlight {
+				/* Slider Bar Filled */
+				background-image: linear-gradient(to bottom, shade(var(--accent), 0.6), var(--accent));
+			}
+
 			fill {
 				/* Slider Peak */
 				border-left: 1px solid #{'alpha(var(--accent), 0.8)'};
@@ -298,6 +312,11 @@ window {
 	&.muted {
 		scale {
 			trough {
+				highlight {
+					/* Slider Bar Filled */
+					background-image: linear-gradient(to bottom, shade(var(--accent), 0.3), shade(var(--accent), 0.7));
+				}
+
 				fill {
 					/* Slider Peak */
 					border-left: 1px solid shade(var(--accent), 0.5);

@@ -14,6 +14,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Default `.css` style is now automatically compiled from `.scss` to reduce the amount of syntax errors and ease the maintenance.
 - (CSS) Deprecated`@define-colors` and SCSS color definitions in favor of the CSS variables.
 - (CSS) New boolean flags for `.scss` to toggle visibility of some elements.
+- (CSS) Dimmed border accent color, reduced font size and changed volume bar color into a gradient, this should provide a slightly more interesting result with different accents.
 
 ### Fixed
 - Layershell initialization before window is realized, which could prevent a successful launch under certain conditions.
