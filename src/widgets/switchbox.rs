@@ -48,6 +48,10 @@ impl Switches {
         }
 
     }
+
+    pub fn clear(&mut self) {
+        self.container.guard().clear();
+    }
 }
 
 #[tracker::track]

@@ -338,6 +338,7 @@ impl App where App: AsyncComponent {
                 self.server.disconnect();
                 self.ready.replace(false);
                 self.sliders.clear();
+                self.switches.clear();
             }
             Disconnected(None) => sender.command_sender().emit(CommandMessage::Quit),
         }
