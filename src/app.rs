@@ -344,6 +344,7 @@ impl App where App: AsyncComponent {
         }
     }
 
+    #[allow(ununsed_variables)]
     fn handle_msg_output_client(&mut self, message: MessageClient, sender: AsyncComponentSender<Self>, window: &<Self as AsyncComponent>::Root) {
         match message {
             MessageClient::Peak(id, peak) => {
