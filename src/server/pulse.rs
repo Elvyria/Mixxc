@@ -177,8 +177,6 @@ impl AudioServer for Pulse {
         let _running = self.running.lock();
 
         loop {
-            std::hint::spin_loop();
-
             match Pulse::iterate(&timeout) {
                 Ok(_) => {},
                 Err(PulseError::MainloopQuit) => break,
