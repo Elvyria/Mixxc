@@ -177,20 +177,19 @@ impl AudioServer for Pulse {
         let _running = self.running.lock();
 
         loop {
+            std::hint::spin_loop();
+
             match Pulse::iterate(&timeout) {
                 Ok(_) => {},
                 Err(PulseError::MainloopQuit) => break,
                 Err(e) => sender.emit(Message::Error(e.into())),
             };
 
-            match self.is_locked() {
-                false => std::thread::yield_now(),
-                true => {
-                    std::thread::park();
+            if self.is_locked() {
+                std::thread::park();
 
-                    if self.is_terminated() {
-                        Pulse::quit()
-                    }
+                if self.is_terminated() {
+                    Pulse::quit()
                 }
             }
         }
