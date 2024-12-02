@@ -30,6 +30,11 @@ struct Args {
     #[argh(switch, short = 'A', long = "active")]
     active_only: bool,
 
+    #[cfg(feature = "Accent")]
+    /// inherit accent color from the system's settings
+    #[argh(switch, short = 'C', long = "accent")]
+    accent: bool,
+
     /// margin distance for each anchor point
     #[argh(option, short = 'm', long = "margin")]
     margins: Vec<i32>,
@@ -105,6 +110,9 @@ fn main() -> Result<(), Error> {
         show_corked: !args.active_only,
         per_process: args.per_process,
         userstyle: args.userstyle,
+
+        #[cfg(feature = "Accent")]
+        accent: args.accent,
 
         server: server::pulse::Pulse::new().into(),
     });

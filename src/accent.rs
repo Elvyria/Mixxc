@@ -6,9 +6,9 @@ use zbus::zvariant::{OwnedValue, Structure};
     default_service = "org.freedesktop.portal.Desktop",
     default_path = "/org/freedesktop/portal/desktop",
     interface = "org.freedesktop.portal.Settings",
-    async_name = "Portal"
+    async_name = "Settings"
 )]
-trait Settings {
+pub trait Settings {
     fn read(&self, namespace: &str, key: &str) -> zbus::Result<OwnedValue>;
 }
 
@@ -18,7 +18,7 @@ pub enum Scheme {
     Light,
 }
 
-impl Portal<'_> {
+impl Settings<'_> {
     async fn appearance(&self, key: &str) -> Result<OwnedValue, Error> {
         self.read("org.freedesktop.appearance", key)
             .await
@@ -29,6 +29,7 @@ impl Portal<'_> {
             .map_err(Into::into)
     }
 
+    #[allow(dead_code)]
     pub async fn scheme(&self) -> Result<Scheme, Error> {
         let reply = self.appearance("color-scheme").await?;
 

@@ -31,6 +31,10 @@ r, right
 .El
 .It Fl A , Fl \-active
 Sliders that are associated with paused media players will be hidden and reappear only when playback is resumed.
+.It Fl C , Fl \-accent
+Reads an accent-color property from the system settings
+.Xr xdg-settings 1
+and applies the color to the user style.
 .It Fl m , Fl \-margin Ar px
 Distance that window will keep from each anchor point respectively.
 .It Fl M , Fl \-master
@@ -93,6 +97,8 @@ Every GTK related message will be ignored and not printed if GTK_DEBUG variable 
 Here's a list of features that can be included or excluded at compile time.
 Excluding some of them might lead to a smaller binary size and performance improvements.
 .Bl -ohang
+.It - Accent
+Support for system accent color.
 .It - Sass
 Support for CSS supersets.
 .It - X11

@@ -7,6 +7,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## [Unreleased]
 
 ### Added
+- Integration with system accent color setting through [XDG Desktop Portal](https://flatpak.github.io/xdg-desktop-portal/docs/doc-org.freedesktop.portal.Settings.html).  
+Requires `Accent` feature to be included at compile time, compatible `xdg-desktop-portal` set and running for `org.freedesktop.impl.portal.Settings` (like `xdg-desktop-portal-kde`) and `-C` or `--accent` flag.
 - New sidebar to quickly swap between audio outputs.
 - `.sass` and `.scss` styles will be compiled using the system `sass` compiler binary if `Sass` feature was not enabled at the compile time.  Style compilation time is much longer, but the resulting binary is around 2mb smaller in size. (https://sass-lang.com/install)
 

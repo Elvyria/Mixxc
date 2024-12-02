@@ -9,8 +9,8 @@ Currently, it supports only `pulseaudio` and `pipewire` (through the pulseaudio 
 ![Preview](https://user-images.githubusercontent.com/2061234/270078395-6454be21-aa09-4da2-8a07-3a3c9b41138f.png)
 
 ## Usage
-```sh
-Usage: mixxc [-w <width>] [-h <height>] [-s <spacing>] [-a <anchor...>] [-A] [-m <margin...>] [-M] [-b <bar>] [-u <userstyle>] [-k] [-i] [-x <max-volume>] [-P] [-v]
+```
+Usage: mixxc [-w <width>] [-h <height>] [-s <spacing>] [-a <anchor...>] [-A] [-C] [-m <margin...>] [-M] [-b <bar>] [-u <userstyle>] [-k] [-i] [-x <max-volume>] [-P] [-v]
 
 Minimalistic volume mixer.
 
@@ -20,6 +20,7 @@ Options:
   -s, --spacing     spacing between clients
   -a, --anchor      screen anchor point: (t)op, (b)ottom, (l)eft, (r)ight
   -A, --active      show only active sinks
+  -C, --accent      inherit accent color from the system's settings
   -m, --margin      margin distance for each anchor point
   -M, --master      enable master volume slider
   -b, --bar         volume slider orientation: (h)orizontal, (v)ertical
@@ -92,6 +93,7 @@ GTK_DEBUG=1 mixxc
 
 ## Features
 Some features can be enabled at compile time.
+* [Accent](https://flatpak.github.io/xdg-desktop-portal/docs/doc-org.freedesktop.portal.Settings.html) - Inherits the accent color from the system's settings.
 * [Sass](https://sass-lang.com/) - Allows you to use SCSS instead of CSS.
 * [Wayland](https://wayland.freedesktop.org/) - Uses wlr-layer-shell to imitate window positioning.
 * [X11](https://www.x.org/) - Sets WM hints and properties, and repositions the window.

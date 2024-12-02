@@ -15,6 +15,7 @@ use smallvec::SmallVec;
 use tokio_util::sync::CancellationToken;
 
 use crate::anchor::Anchor;
+use crate::style::{self, StyleSettings};
 use crate::widgets::sliderbox::{SliderBox, SliderMessage, Sliders};
 use crate::server::{self, AudioServer, AudioServerEnum, Kind, MessageClient, MessageOutput, VolumeLevels};
 use crate::widgets::switchbox::{SwitchBox, Switches};
@@ -44,6 +45,9 @@ pub struct Config {
     pub show_corked: bool,
     pub per_process: bool,
     pub userstyle: Option<std::path::PathBuf>,
+
+    #[cfg(feature = "Accent")]
+    pub accent: bool,
 
     pub server: AudioServerEnum,
 }
@@ -149,11 +153,16 @@ impl AsyncComponent for App {
         let server = Arc::new(config.server);
 
         sender.oneshot_command(async move {
+            let mut settings = StyleSettings::default();
+
+            #[cfg(feature = "Accent")]
+            { settings.accent = config.accent; }
+
             let style = match config.userstyle {
-                Some(p) => crate::style::read(p).await,
+                Some(p) => style::read(p).await,
                 None    => {
                     let config_dir = crate::config_dir().await.unwrap();
-                    crate::style::find(config_dir).await
+                    style::find(config_dir, settings).await
                 },
             };
 
@@ -161,7 +170,7 @@ impl AsyncComponent for App {
                 Ok(s) => s,
                 Err(e) => {
                     eprintln!("{}", e);
-                    crate::style::default()
+                    style::default(settings).await
                 }
             };
 

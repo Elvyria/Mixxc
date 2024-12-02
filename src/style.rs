@@ -7,7 +7,13 @@ use tokio::io::AsyncWriteExt;
 
 use crate::error::{StyleError, Error};
 
-pub async fn find(path: impl Into<PathBuf>) -> Result<Cow<'static, str>, Error> {
+#[derive(Default, Copy, Clone)]
+pub struct StyleSettings {
+    #[cfg(feature = "Accent")]
+    pub accent: bool,
+}
+
+pub async fn find(path: impl Into<PathBuf>, settings: StyleSettings) -> Result<Cow<'static, str>, Error> {
     let mut path = path.into();
 
     path.push("style");
@@ -24,20 +30,39 @@ pub async fn find(path: impl Into<PathBuf>) -> Result<Cow<'static, str>, Error> 
 
     path.set_extension("css");
 
-    match path.exists() {
+    let s = match path.exists() {
         true  => read(path).await,
-        false => write_default(path).await,
+        false => write_default(path, StyleSettings::default()).await,
+    };
+
+    #[cfg(feature = "Accent")]
+    if settings.accent {
+        if let Ok(s) = s {
+            return apply_accent(s).await;
+        }
     }
+
+    s
 }
 
-pub fn default() -> Cow<'static, str> {
+pub async fn default(settings: StyleSettings) -> Cow<'static, str> {
     static DEFAULT_STYLE: &str = include_str!("../style/default.css");
+
+    #[cfg(feature = "Accent")]
+    if settings.accent {
+        let s = Cow::Borrowed(DEFAULT_STYLE);
+
+        if let Ok(s) = apply_accent(s).await {
+            return s;
+        }
+    }
+
     Cow::Borrowed(DEFAULT_STYLE)
 }
 
-async fn write_default(path: impl AsRef<Path>) -> Result<Cow<'static, str>, Error> {
+async fn write_default(path: impl AsRef<Path>, settings: StyleSettings) -> Result<Cow<'static, str>, Error> {
     let path = path.as_ref();
-    let style = default();
+    let style = default(settings).await;
 
     let mut fd = File::create(path)
         .await.map_err(|e| StyleError::Create { e, path: path.to_owned() })?;
@@ -145,4 +170,36 @@ async fn cache(path: impl AsRef<Path>, style: &str, time: std::time::SystemTime)
 
     f.into_std().await.set_modified(time)
         .map_err(|e| CacheError::MTime { e, path: path.to_owned() })
+}
+
+#[cfg(feature = "Accent")]
+async fn apply_accent(s: Cow<'static, str>) -> Result<Cow<'static, str>, Error> {
+    use crate::accent;
+    use crate::error::ZbusError;
+
+    fn find_and_replace(s: &str, r: u8, g: u8, b: u8) -> Option<String> {
+        let mut s = s.to_owned();
+
+        let start = s.find("--accent:")?;
+        let end = s[start..].find(';')?;
+
+        s.replace_range(
+            start..start + end,
+            &format!("--accent:#{r:02X}{g:02X}{b:02X}"));
+
+        Some(s)
+    }
+
+    let conn = zbus::Connection::session().await
+        .map_err(|e| ZbusError::Connect { e })?;
+
+    let settings = accent::Settings::new(&conn).await
+        .map_err(|e| ZbusError::Proxy { e })?;
+
+    let (r, g, b) = settings.accent().await?;
+
+    match find_and_replace(&s, r, g, b).map(Cow::Owned) {
+        Some(s) => Ok(s),
+        None => Ok(s),
+    }
 }

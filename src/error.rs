@@ -104,6 +104,12 @@ pub enum CacheError {
 #[cfg(feature = "Accent")]
 #[derive(Error, Debug)]
 pub enum ZbusError {
+    #[error("Couldn't establish a connection with the session bus\n{e}")]
+    Connect { e: zbus::Error },
+
+    #[error("Couldn't create a proxy to access the bus interface\n{e}")]
+    Proxy { e: zbus::Error },
+
     #[error("Unable to read `{key}` from `{namespace}, make sure that your `xdg-desktop-portal` supports it and configured correctly`\n{e}")]
     Read { e: zbus::Error, namespace: String, key: String },
 
