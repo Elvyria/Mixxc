@@ -98,7 +98,7 @@ impl Pulse {
 
     fn lock_blocking(&self) -> ContextRef {
         self.lock.send_replace(Lock::Aquire);
-        while *self.lock.borrow() != Lock::Locked {}
+        while *self.lock.borrow() != Lock::Locked { std::hint::spin_loop(); }
 
         let context = self.context.try_lock().unwrap();
         let thread = self.thread.try_lock().unwrap();
