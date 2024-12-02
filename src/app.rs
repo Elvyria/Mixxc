@@ -153,6 +153,7 @@ impl AsyncComponent for App {
         let server = Arc::new(config.server);
 
         sender.oneshot_command(async move {
+            #[allow(unused_mut)]
             let mut settings = StyleSettings::default();
 
             #[cfg(feature = "Accent")]

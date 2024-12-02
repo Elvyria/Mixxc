@@ -13,6 +13,7 @@ pub struct StyleSettings {
     pub accent: bool,
 }
 
+#[allow(unused_variables)]
 pub async fn find(path: impl Into<PathBuf>, settings: StyleSettings) -> Result<Cow<'static, str>, Error> {
     let mut path = path.into();
 
@@ -45,6 +46,7 @@ pub async fn find(path: impl Into<PathBuf>, settings: StyleSettings) -> Result<C
     s
 }
 
+#[allow(unused_variables)]
 pub async fn default(settings: StyleSettings) -> Cow<'static, str> {
     static DEFAULT_STYLE: &str = include_str!("../style/default.css");
 
