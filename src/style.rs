@@ -4,8 +4,9 @@ use std::path::{PathBuf, Path};
 
 use tokio::fs::{self, File};
 use tokio::io::AsyncWriteExt;
+use tokio::process::Command;
 
-use crate::error::{StyleError, Error};
+use crate::error::{CacheError, Error, StyleError};
 
 #[derive(Default, Copy, Clone)]
 pub struct StyleSettings {
@@ -142,14 +143,14 @@ async fn compile_sass(style_path: impl AsRef<std::path::Path>) -> Result<String,
 
     #[cfg(not(feature = "Sass"))]
     let compiled = {
-        use std::io::Write;
-
-        let output = std::process::Command::new("sass")
+        let output = Command::new("sass")
             .args(["--no-source-map", "-s", "expanded", &style_path.to_string_lossy()])
-            .output()
+            .output().await
             .map_err(|e| StyleError::SystemCompiler { e: Some(e), path: style_path.to_owned() })?;
 
-        let _ = std::io::stderr().write_all(&output.stderr);
+        if !output.stderr.is_empty() {
+            let _ = std::io::Write::write_all(&mut std::io::stderr(), &output.stderr);
+        }
 
         if !output.status.success() {
             let e = StyleError::SystemCompiler { e: None, path: style_path.to_owned() };
@@ -166,7 +167,7 @@ async fn compile_sass(style_path: impl AsRef<std::path::Path>) -> Result<String,
     Ok(compiled)
 }
 
-async fn cache(path: impl AsRef<Path>, style: &str, time: std::time::SystemTime) -> Result<(), crate::error::CacheError> {
+async fn cache(path: impl AsRef<Path>, style: &str, time: std::time::SystemTime) -> Result<(), CacheError> {
     use crate::error::CacheError;
 
     let path = path.as_ref();
