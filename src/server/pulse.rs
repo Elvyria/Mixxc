@@ -187,12 +187,11 @@ impl AudioServer for Pulse {
                 std::thread::park();
 
                 if self.is_terminated() {
+                    self.peakers.lock().borrow_mut().clear();
                     Pulse::quit()
                 }
             }
         }
-
-        self.peakers.lock().borrow_mut().clear();
 
         Ok(())
     }
