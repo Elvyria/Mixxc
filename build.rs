@@ -1,10 +1,29 @@
 use std::io::Write;
 use std::fs::{self, File};
+use std::process::Command;
 
 use anyhow::Result;
 
 fn main() {
     compile_style().unwrap();
+    git_hash().unwrap();
+}
+
+fn git() -> Command {
+    Command::new("git")
+}
+
+fn git_hash() -> Result<()> {
+    if !git().args(["describe", "--exact-match", "--tags", "HEAD"]).status().is_ok_and(|s| !s.success()) {
+        return Ok(())
+    }
+
+    let output = git().args(["describe", "--tags", "HEAD"]).output()?;
+    let output = String::from_utf8(output.stdout)?;
+
+    println!("cargo:rustc-env=GIT_COMMIT={output}");
+
+    Ok(())
 }
 
 fn compile_style() -> Result<()> {

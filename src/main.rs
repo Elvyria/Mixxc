@@ -76,7 +76,13 @@ fn main() -> Result<(), Error> {
     let args: Args = argh::from_env();
 
     if args.version {
-        println!("{} {}", env!("CARGO_PKG_NAME"), env!("CARGO_PKG_VERSION"));
+        print!("{}", env!("CARGO_PKG_NAME"));
+
+        match option_env!("GIT_COMMIT") {
+            Some(s) => println!(" {s}"),
+            None    => println!(" {}", env!("CARGO_PKG_VERSION")),
+        };
+
         return Ok(())
     }
 

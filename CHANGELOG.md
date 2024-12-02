@@ -13,6 +13,7 @@ Requires `Accent` feature to be included at compile time, compatible `xdg-deskto
 - `.sass` and `.scss` styles will be compiled using the system `sass` compiler binary if `Sass` feature was not enabled at the compile time.  Style compilation time is much longer, but the resulting binary is around 2mb smaller in size. (https://sass-lang.com/install)
 
 ### Changed
+- Version reported by the `-v` `--version` flag will now include git commit hash if the commit used for build wasn't tagged.
 - Default `.css` style is now automatically compiled from `.scss` to reduce the amount of syntax errors and ease the maintenance.
 - (CSS) Deprecated`@define-colors` and SCSS color definitions in favor of the CSS variables.
 - (CSS) New boolean flags for `.scss` to toggle visibility of some elements.
