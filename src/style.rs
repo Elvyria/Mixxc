@@ -23,7 +23,14 @@ pub async fn find(path: impl Into<PathBuf>, settings: StyleSettings) -> Result<C
         path.set_extension(ext);
 
         match read(&path).await {
-            Ok(style) => return Ok(style),
+            Ok(style) => {
+                #[cfg(feature = "Accent")]
+                if settings.accent {
+                    return apply_accent(style).await;
+                }
+
+                return Ok(style)
+            },
             Err(Error::Style(StyleError::NotFound(_))) => continue,
             Err(e) => return Err(e),
         }
