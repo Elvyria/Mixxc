@@ -6,8 +6,8 @@ Mixxc is a minimalistic and customizable volume mixer, created to seamlessly com
 
 Currently, it supports only `pulseaudio` and `pipewire` (through the pulseaudio interface) by utilizing `libpulseaudio` to receive audio events.
 
-![Preview - Vertical](https://github.com/Elvyria/Mixxc/assets/2061234/cc7c1849-ec4b-4e58-840e-cf66db99be76)
-![Preview](https://user-images.githubusercontent.com/2061234/270078395-6454be21-aa09-4da2-8a07-3a3c9b41138f.png)
+![Preview](https://github.com/user-attachments/assets/c7ed4c25-0477-402c-b246-e97e53a4f5af)
+
 ## Installation
 Can be installed from [crates.io](https://crates.io/) with `cargo`:
 
