@@ -4,7 +4,6 @@ use std::path::{PathBuf, Path};
 
 use tokio::fs::{self, File};
 use tokio::io::AsyncWriteExt;
-use tokio::process::Command;
 
 use crate::error::{CacheError, Error, StyleError};
 
@@ -143,7 +142,7 @@ async fn compile_sass(style_path: impl AsRef<std::path::Path>) -> Result<String,
 
     #[cfg(not(feature = "Sass"))]
     let compiled = {
-        let output = Command::new("sass")
+        let output = tokio::process::Command::new("sass")
             .args(["--no-source-map", "-s", "expanded", &style_path.to_string_lossy()])
             .output().await
             .map_err(|e| StyleError::SystemCompiler { e: Some(e), path: style_path.to_owned() })?;
@@ -187,19 +186,6 @@ async fn apply_accent(s: Cow<'static, str>) -> Result<Cow<'static, str>, Error> 
     use crate::accent;
     use crate::error::ZbusError;
 
-    fn find_and_replace(s: &str, r: u8, g: u8, b: u8) -> Option<String> {
-        let mut s = s.to_owned();
-
-        let start = s.find("--accent:")?;
-        let end = s[start..].find(';')?;
-
-        s.replace_range(
-            start..start + end,
-            &format!("--accent:#{r:02X}{g:02X}{b:02X}"));
-
-        Some(s)
-    }
-
     let conn = zbus::Connection::session().await
         .map_err(|e| ZbusError::Connect { e })?;
 
@@ -208,8 +194,31 @@ async fn apply_accent(s: Cow<'static, str>) -> Result<Cow<'static, str>, Error> 
 
     let (r, g, b) = settings.accent().await?;
 
-    match find_and_replace(&s, r, g, b).map(Cow::Owned) {
+    match set_color(s.as_ref(), "accent", r, g, b).map(Cow::Owned) {
         Some(s) => Ok(s),
         None => Ok(s),
     }
+}
+
+#[cfg(feature = "Accent")]
+fn find_var(s: &str, name: &str) -> Option<std::ops::Range<usize>>  {
+    let start = s.find(&format!("--{name}:"))?;
+    let end = s[start..].find(';')?;
+
+    Some(start..start + end)
+}
+
+#[cfg(feature = "Accent")]
+fn set_var(s: impl Into<String>, name: &str, value: &str) -> Option<String> {
+    let mut s = s.into();
+    s.replace_range(
+        find_var(&s, name)?,
+        &format!("--{name}: {value}"));
+
+    Some(s)
+}
+
+#[cfg(feature = "Accent")]
+fn set_color(s: impl Into<String>, name: &str, r: u8, g: u8, b: u8) -> Option<String> {
+    set_var(s, name, &format!("#{r:02X}{g:02X}{b:02X}"))
 }
