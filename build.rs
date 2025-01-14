@@ -30,11 +30,11 @@ fn compile_style() -> Result<()> {
     use grass::*;
 
     let source      = "style/default.scss";
-    let destination = "style/default.css";
+    let destination = format!("{}/default.css", std::env::var("OUT_DIR").unwrap());
 
     let source_mtime = fs::metadata(source)?.modified()?;
 
-    if let Ok(destination_meta) = fs::metadata(destination) {
+    if let Ok(destination_meta) = fs::metadata(&destination) {
         if Some(source_mtime) == destination_meta.modified().ok() {
             return Ok(())
         }

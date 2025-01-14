@@ -28,7 +28,11 @@ jobs:
 
       - name: Find Executable
         run: |
-          find target/${{ matrix.target }}/release -maxdepth 1 -type f -executable -exec echo binary={} \; >> "$GITHUB_ENV"
+          find target/${{ matrix.target }}/release -maxdepth 1 -type f -executable -exec echo binary={} \; -quit >> "$GITHUB_ENV"
+
+      - name: Find Style
+        run: |
+          find target/${{ matrix.target }}/release -type f -name '*.css' -exec echo style={} \; -quit >> "$GITHUB_ENV"
 
       - name: Patch ELF
         run: |
@@ -40,6 +44,14 @@ jobs:
       - name: Report MD5
         run: |
           md5sum -b ${{ env.binary }} | head -c 32
+
+      - name: Upload Style
+        uses: actions/upload-artifact@v4
+        with:
+          name: default.css
+          path: ${{ env.style }}
+          if-no-files-found: error
+          overwrite: false
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
