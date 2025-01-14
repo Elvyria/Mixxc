@@ -74,7 +74,7 @@ pub enum CommandMessage {
     Server(server::Message),
     SetStyle(Cow<'static, str>),
     Success,
-    Connect,
+    #[allow(dead_code)] Connect,
     Show,
     Quit,
 }
