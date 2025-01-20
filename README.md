@@ -17,7 +17,7 @@ cargo install mixxc --locked --features Sass,Wayland...
 ```
 
 ## Dependencies
-* [GTK4](https://www.gtk.org/)
+* [GTK4](https://www.gtk.org/) (4.15.1+)
 * [gtk4-layer-shell](https://github.com/wmww/gtk4-layer-shell) (Feature: Wayland)
 * [libpulseaudio](https://www.freedesktop.org/wiki/Software/PulseAudio)
 * [libxcb](https://xcb.freedesktop.org/) (Feature: X11)
