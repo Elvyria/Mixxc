@@ -165,13 +165,13 @@ impl Slider {
             return self.clients[0].description.as_str()
         }
 
-        self.clients.iter().reduce(|acc, c| {
-            let a = acc.score();
-            let b = c.score();
+        self.clients.iter().reduce(|best, candidate| {
+            let a = best.score();
+            let b = candidate.score();
 
-            match (a > b) || (a == b && c.id > acc.id) {
-                true => c,
-                false => acc,
+            match (b > a) || ((a == b) && candidate.id > best.id) {
+                true => candidate,
+                false => best
             }
         })
         .map(|client| client.description.as_str())
