@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [Unreleased]
+
+### Fixed
+- Active clients will take priority over muted and paused ones with `-P` `--per-process` flag as intended.
+
 ## [0.2.4] - 2025-01-14
 
 ### Added
@@ -92,7 +97,8 @@ Requires `Accent` feature to be included at compile time, compatible `xdg-deskto
 - List of sinks will now grow from bottom to top if window is anchored to bottom.
 - Minimal `rustc` version for compilation is now `1.75.0` due to [FileTimes](https://doc.rust-lang.org/std/fs/struct.FileTimes.html) stabilization.
 
-[unreleased]: https://github.com/Elvyria/Mixxc/compare/0.2.3...HEAD
+[unreleased]: https://github.com/Elvyria/Mixxc/compare/0.2.4...HEAD
+[0.2.4]: https://github.com/Elvyria/Mixxc/compare/0.2.3...0.2.4
 [0.2.3]: https://github.com/Elvyria/Mixxc/compare/0.2.2...0.2.3
 [0.2.2]: https://github.com/Elvyria/Mixxc/compare/0.2.1...0.2.2
 [0.2.1]: https://github.com/Elvyria/Mixxc/compare/0.2.0...0.2.1
