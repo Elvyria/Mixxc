@@ -36,8 +36,8 @@ Usage: mixxc [-w <width>] [-h <height>] [-s <spacing>] [-a <anchor...>] [-A] [-C
 Minimalistic volume mixer.
 
 Options:
-  -w, --width       window height
-  -h, --height      window width
+  -w, --width       window width
+  -h, --height      window height
   -s, --spacing     spacing between clients
   -a, --anchor      screen anchor point: (t)op, (b)ottom, (l)eft, (r)ight
   -A, --active      show only active sinks
