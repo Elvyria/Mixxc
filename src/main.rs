@@ -10,11 +10,11 @@ static APP_BINARY: &str = "mixxc";
 #[derive(argh::FromArgs)]
 ///Minimalistic volume mixer.
 struct Args {
-    /// window height
+    /// window width
     #[argh(option, short = 'w')]
     width: Option<u32>,
 
-    /// window width
+    /// window height
     #[argh(option, short = 'h')]
     height: Option<u32>,
 
