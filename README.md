@@ -36,7 +36,7 @@ Some features can be enabled at compile time.
 
 ## Usage
 ```
-Usage: mixxc [-w <width>] [-h <height>] [-s <spacing>] [-a <anchor...>] [-A] [-C] [-m <margin...>] [-M] [-b <bar>] [-u <userstyle>] [-k] [-i] [-x <max-volume>] [-P] [-v]
+Usage: mixxc [-w <width>] [-h <height>] [-s <spacing>] [-a <anchor...>] [-A] [-m <margin...>] [-M] [-b <bar>] [-u <userstyle>] [-c <close>] [-i] [-x <max-volume>] [-P] [-v]
 
 Minimalistic volume mixer.
 
@@ -46,12 +46,12 @@ Options:
   -s, --spacing     spacing between clients
   -a, --anchor      screen anchor point: (t)op, (b)ottom, (l)eft, (r)ight
   -A, --active      show only active sinks
-  -C, --accent      inherit accent color from the system's settings
   -m, --margin      margin distance for each anchor point
   -M, --master      enable master volume slider
   -b, --bar         volume slider orientation: (h)orizontal, (v)ertical
   -u, --userstyle   path to the userstyle
-  -k, --keep        keep window open
+  -c, --close       close the window after a specified amount of time (ms) when
+                    focus is lost (default: 0)
   -i, --icon        enable client icons
   -x, --max-volume  max volume level in percent (default: 100; 1-255)
   -P, --per-process use only one volume slider for each system process
@@ -86,14 +86,6 @@ If startup seems a bit slow or memory usage seems a bit too high try this:
 GSK_RENDERER=cairo GTK_USE_PORTAL=0 mixxc
 ```
 
-### Manual Closing
-By default window will be closed if it looses focus.  
-This is a workaround for WM's that don't send `close` request to layer-shells under Wayland.  
-If this behavior is not desirable, you can disable it:
-```sh
-mixxc --keep
-```
-
 ### Toggle Window
 If you want to toggle window with a click of a button, Unix way is the way:
 ```sh
@@ -118,14 +110,14 @@ GTK_DEBUG=1 mixxc
 ## Building
 To build this little thing, you'll need some [Rust](https://www.rust-lang.org/).
 
-### Makefile
+##### Makefile
 ```sh
 git clone --depth 1 https://github.com/Elvyria/mixxc
 cd mixxc
 make
 ```
 
-### Cargo
+##### Cargo
 ```sh
 git clone --depth 1 https://github.com/Elvyria/mixxc
 cd mixxc
