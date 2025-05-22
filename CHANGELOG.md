@@ -7,7 +7,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## [Unreleased]
 
 ### Added
-- [Makefile](/Makefile) to make installation and build process easier a bit easier.
+- [Makefile](/Makefile) to make installation and build process a bit easier.
 
 ### Fixed
 - Active clients will take priority over muted and paused ones with `-P` `--per-process` flag as intended.
