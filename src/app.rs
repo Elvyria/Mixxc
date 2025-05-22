@@ -29,6 +29,7 @@ pub struct App {
     master: bool,
     sliders: Sliders,
     switches: Switches,
+    close_after: u32,
 
     ready: Rc<Cell<bool>>,
     shutdown: Option<CancellationToken>,
@@ -55,7 +56,7 @@ pub struct Config {
 pub struct WMConfig {
     pub anchors: Anchor,
     pub margins: Vec<i32>,
-    pub keep:    bool,
+    pub close_after: u32,
 }
 
 #[derive(Debug)]
@@ -133,7 +134,7 @@ impl AsyncComponent for App {
 
         #[cfg(feature = "Wayland")]
         if crate::xdg::is_wayland() {
-            window.connect_realize(move |w| Self::init_wayland(w, config.anchors, &config.margins, !config.keep));
+            window.connect_realize(move |w| Self::init_wayland(w, config.anchors, &config.margins, config.close_after != 0));
         }
 
         #[cfg(feature = "X11")]
@@ -201,6 +202,7 @@ impl AsyncComponent for App {
             switches: Switches::new(sender.input_sender()),
             ready: Rc::new(Cell::new(false)),
             shutdown: None,
+            close_after: wm_config.close_after,
         };
 
         let switch_box = model.switches.container.widget();
@@ -215,7 +217,7 @@ impl AsyncComponent for App {
         window.set_default_height(config.height as i32);
         window.set_default_width(config.width as i32);
 
-        if !wm_config.keep {
+        if wm_config.close_after != 0 {
             let has_pointer = Rc::new(Cell::new(false));
 
             let controller = gtk::EventControllerMotion::new();
@@ -300,10 +302,12 @@ impl AsyncComponent for App {
                 self.shutdown = Some(CancellationToken::new());
                 let token = self.shutdown.as_ref().unwrap().clone();
 
+                let duration = Duration::from_millis(self.close_after as u64);
+
                 sender.oneshot_command(async move {
                     tokio::select! {
                         _ = token.cancelled() => CommandMessage::Success,
-                        _ = tokio::time::sleep(Duration::from_millis(150)) => {
+                        _ = tokio::time::sleep(duration) => {
                             CommandMessage::Quit
                         }
                     }

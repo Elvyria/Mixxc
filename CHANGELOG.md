@@ -9,6 +9,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ### Fixed
 - Active clients will take priority over muted and paused ones with `-P` `--per-process` flag as intended.
 
+### Changed
+- (Breaking) Flag `-k` `--keep` was removed in favor of the user provided delay option for closing `-c` `--close`.
+- Window will no longer close itself without a notice by default to not confuse new users.
+
 ## [0.2.4] - 2025-01-14
 
 ### Added

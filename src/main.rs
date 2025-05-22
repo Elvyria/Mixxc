@@ -51,9 +51,9 @@ struct Args {
     #[argh(option, short = 'u')]
     userstyle: Option<PathBuf>,
 
-    /// keep window open
-    #[argh(switch, short = 'k', long = "keep")]
-    keep: bool,
+    /// close the window after a specified amount of time (ms) when focus is lost (default: 0)
+    #[argh(option, short = 'c', long = "close")]
+    close_after: Option<u32>,
 
     /// enable client icons
     #[argh(switch, short = 'i', long = "icon")]
@@ -101,7 +101,7 @@ fn main() -> Result<(), Error> {
 
     app::WM_CONFIG.get_or_init(|| app::WMConfig {
         anchors,
-        keep:    args.keep,
+        close_after: args.close_after.unwrap_or(0),
         margins: args.margins,
     });
 
