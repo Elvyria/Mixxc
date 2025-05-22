@@ -16,6 +16,11 @@ Can be installed from [crates.io](https://crates.io/) with `cargo`:
 cargo install mixxc --locked --features Sass,Wayland...
 ```
 
+or right after [building](#building) manually with `make`:
+```sh
+make install
+```
+
 ## Dependencies
 * [GTK4](https://www.gtk.org/) (4.15.1+)
 * [gtk4-layer-shell](https://github.com/wmww/gtk4-layer-shell) (Feature: Wayland)
@@ -113,6 +118,14 @@ GTK_DEBUG=1 mixxc
 ## Building
 To build this little thing, you'll need some [Rust](https://www.rust-lang.org/).
 
+### Makefile
+```sh
+git clone --depth 1 https://github.com/Elvyria/mixxc
+cd mixxc
+make
+```
+
+### Cargo
 ```sh
 git clone --depth 1 https://github.com/Elvyria/mixxc
 cd mixxc
