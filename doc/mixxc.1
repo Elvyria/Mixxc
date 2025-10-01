@@ -61,8 +61,8 @@ will attempt to read style file from $XDG_CONFIG_HOME/mixxc, with priority for C
 .It
 \&.sass (Feature: Sass)
 .El
-.It Fl k , Fl \-keep
-Prevent window from closing itself. By default, window will be closed if focus is lost and mouse is no longer over it.
+.It Fl k , Fl \-close
+Close window when focus is lost and mouse is no longer hovering over it.
 .It Fl i , Fl \-icon
 Show icons that applications provide or display a generic reactive volume icon.
 If not all application icons are displayed properly, you might need to update icon cache
@@ -116,11 +116,6 @@ $ mixxc --anchor bottom	--margin 20 \\
 Using short options to switch to vertical slider orientation with icons, set width and height for each one of them.
 .Bd -literal -offset indent
 $ mixxc -b v -i -w 75 -h 350
-.Ed
-
-If you don't need auto-closing - you can turn your custom made button into a switch.
-.Bd -literal -offset indent
-$ pkill mixxc | mixxc --keep
 .Ed
 
 GTK4 supports multiple rendering backends which might improve startup time, memory usage or fix graphical glitches.
