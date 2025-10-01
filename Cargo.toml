@@ -17,8 +17,8 @@ Accent = ["dep:zbus"]
 
 [dependencies]
 argh = "0.1"
-bitflags = "2.6"
-color-print = "0.3.6"
+bitflags = "2.9"
+color-print = "0.3.7"
 derive_more = { version = "1", features = ["deref", "deref_mut", "from", "debug"] }
 enum_dispatch = "0.3"
 glib = "0.20"
@@ -26,11 +26,11 @@ grass = { version = "0.13", package = "grass_compiler", optional = true }
 gtk = { version = "0.9", package = "gtk4" }
 gtk4-layer-shell = { version = "0.4", optional = true }
 num-traits = "0.2"
-parking_lot = "0.12.3"
-smallvec = { version = "1.13", features = ["union"] }
+parking_lot = "0.12.4"
+smallvec = { version = "1.15", features = ["union"] }
 thiserror = "1.0"
-tokio = { version = "1.40", features = ["time", "macros", "fs", "io-util", "signal", "process"] }
-tokio-util = "0.7.12"
+tokio = { version = "1.47", features = ["time", "macros", "fs", "io-util", "signal", "process"] }
+tokio-util = "0.7.16"
 tracker = "0.2"
 
 [dependencies.x11rb]
@@ -50,7 +50,7 @@ default-features = false
 features = ["macros"]
 
 [dependencies.libpulse-binding]
-version = "2.28"
+version = "2.30"
 default-features = false
 features = ["pa_v8"]
 
@@ -62,5 +62,5 @@ optional = true
 
 [build-dependencies]
 anyhow = "1.0"
-regex = { version = "1.11.1", default-features = false }
+regex = { version = "1.11.3", default-features = false }
 grass = { version = "0.13", package = "grass_compiler" }
