@@ -3,7 +3,7 @@
 let
 	rust_overlay = import (fetchTarball "https://github.com/oxalica/rust-overlay/archive/master.tar.gz");
 	pkgs = import <nixpkgs> { overlays = [ rust_overlay ]; };
-	rustVersion = "1.82.0";
+	rustVersion = "1.90.0";
 	rust = pkgs.rust-bin.stable.${rustVersion}.minimal.override {
 		targets = [ target ];
 	};
