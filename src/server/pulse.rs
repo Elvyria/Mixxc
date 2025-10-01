@@ -82,7 +82,7 @@ impl Pulse {
         self.state.load(Ordering::Acquire) == State::Terminated as u8
     }
 
-    async fn lock(&self) -> ContextRef {
+    async fn lock(&self) -> ContextRef<'_> {
         self.lock.send_replace(Lock::Aquire);
         self.lock.subscribe().wait_for(|lock| *lock == Lock::Locked).await.unwrap();
 
@@ -96,7 +96,7 @@ impl Pulse {
         }
     }
 
-    fn lock_blocking(&self) -> ContextRef {
+    fn lock_blocking(&self) -> ContextRef<'_> {
         self.lock.send_replace(Lock::Aquire);
         while *self.lock.borrow() != Lock::Locked { std::hint::spin_loop(); }
 
@@ -663,7 +663,7 @@ struct ContextRef<'a> {
     thread: MutexGuard<'a, Thread>,
 }
 
-impl<'a> ContextRef<'a> {
+impl ContextRef<'_> {
     fn introspect(&self) -> Introspector {
         let context = self.borrow();
         context.introspect()
