@@ -7,7 +7,7 @@ datadir ?= ${datarootdir}
 mandir ?= ${datarootdir}/man
 man1dir ?= ${mandir}/man1
 
-name = $(shell sed -nE 's/name *?= *?"(.+)"/\1/p' ./Cargo.toml)
+name = $(shell sed -nE '0,/name *?= *?"(.+)"/s//\1/p' ./Cargo.toml)
 ifdef CARGO_TARGET_DIR
 	target = ${CARGO_TARGET_DIR}
 else
