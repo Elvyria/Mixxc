@@ -4,7 +4,9 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
-## [Unreleased]
+## [ Unreleased ]
+
+## [0.2.5] - 2025-10-01
 
 ### Added
 - [Makefile](/Makefile) to make installation and build process a bit easier.
@@ -104,7 +106,8 @@ Requires `Accent` feature to be included at compile time, compatible `xdg-deskto
 - List of sinks will now grow from bottom to top if window is anchored to bottom.
 - Minimal `rustc` version for compilation is now `1.75.0` due to [FileTimes](https://doc.rust-lang.org/std/fs/struct.FileTimes.html) stabilization.
 
-[unreleased]: https://github.com/Elvyria/Mixxc/compare/0.2.4...HEAD
+[unreleased]: https://github.com/Elvyria/Mixxc/compare/0.2.5...HEAD
+[0.2.5]: https://github.com/Elvyria/Mixxc/compare/0.2.4...0.2.5
 [0.2.4]: https://github.com/Elvyria/Mixxc/compare/0.2.3...0.2.4
 [0.2.3]: https://github.com/Elvyria/Mixxc/compare/0.2.2...0.2.3
 [0.2.2]: https://github.com/Elvyria/Mixxc/compare/0.2.1...0.2.2
