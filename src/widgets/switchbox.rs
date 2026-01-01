@@ -132,7 +132,7 @@ impl FactoryComponent for Switch {
 fn icon(s: &str) -> &'static str {
     let s = s.to_ascii_lowercase();
 
-    if s.contains("headphones") {
+    if s.contains("headphones") || s.contains("headset") {
         "audio-headphones-symbolic"
     }
     else if s.contains("hdmi") {
